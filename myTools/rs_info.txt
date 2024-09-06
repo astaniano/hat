@@ -1,0 +1,13 @@
+# upgrade rs
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+export TERM=xterm
+CTRL+Z
+stty raw -echo; fg
+
+# if files on a website can be reached via 10.10.251.93/files then the path to ftp directory is:
+/var/www/html/file
+
+# read file contents:
+while read line; do echo $line; done < /home/rick/"second ingredients"
+
+

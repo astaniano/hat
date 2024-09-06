@@ -1,0 +1,34 @@
+=====================================
+- Single-endpoint race conditions
+Let's say there's a reset email functionality
+Consider that there may be a race window between when the website:
+    Kicks off a task that eventually sends an email to the provided address.
+    Retrieves data from the database and uses this to render the email template.
+I.e. email that resets email may be sent to your own email but it will update email to email of another user
+
+# Interesting
+Some frameworks attempt to prevent accidental data corruption by using some form of request locking. For example, PHP's native session handler module only processes one request per session at a time.
+
+It's extremely important to spot this kind of behavior as it can otherwise mask trivially exploitable vulnerabilities. If you notice that all of your requests are being processed sequentially, try sending each of them using a different session token. 
+
+=====================================
+- Partial construction race conditions
+Let's say there are 2 endpoints in the registration flow:
+POST /register
+POST /confirm?token[]=
+
+POST /register endpoint may do the following:
+1. create (insert) user into the db
+2. generate random registration confirmation token
+3. update user record (update registration token field with the newly created token)
+
+The idea is to catch this race window when user is created but reg_token field is equal to null)
+
+In php we can make something like:
+http://localhost/info.php?param[]=
+And param[]= will be equal to null
+So in the POST /confirm endpoint it'll get a val from user.reg_token field which will be NULL if we got into that race window successfully and null will be equal to null so the registration will be confirmed
+
+
+
+
