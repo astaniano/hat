@@ -10,7 +10,7 @@ These will often return a JSON configuration file containing key information, su
 #### Lab: Authentication bypass via OAuth implicit flow
 After all the stuff (e.g.: providing your username and password and later confirming that we agree to share e.g. email with current website) with the OAuth service provider is done
 We will be redirected back to the url that we provided initially in the `authorization` request.
-e.g.: if the the initial request was:
+e.g.: if the initial request was:
 ```
 GET /authorization?client_id=12345&redirect_uri=https://client-app.com/callback&response_type=token&scope=openid%20profile&state=ae13d489bd00e3c24 HTTP/1.1
 Host: oauth-authorization-server.com
@@ -86,7 +86,7 @@ If they are logged in we send them the following csrf payload
 ```
 And when they click it - they basically finish oauth flow that we started and our facebook profile is attached to their account on the website.
 
-On the website there is a way to login via Oauth provider (e.g. facebook) credentials. So when we do that with credentials of out own facebook we are logged into another user profile
+On the website there is a way to login via Oauth provider (e.g. facebook) credentials. So when we do that with credentials of our own facebook we are logged into another user profile
 
 > Note: if the site allows users to log in exclusively via OAuth, the state parameter is arguably less critical. However, not using a state parameter can still allow attackers to construct login CSRF attacks, whereby the user is tricked into logging in to the attacker's account.
 

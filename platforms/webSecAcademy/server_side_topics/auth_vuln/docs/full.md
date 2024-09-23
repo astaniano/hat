@@ -27,15 +27,14 @@ During auditing, check whether the website discloses potential usernames publicl
   - `{ "password": "some passs" }` to an array:
 `{ "password": ["some passs", "another pass"] }`
 
-### Bypassing two-factor authentication
-> Note may be useful to check TTL of mfa-codes
-- websites don't check the second verification step of MFA and you can visit "logged-in only" pages after the correct username and password
-- After a user has completed the initial login step, the website doesn't adequately verify that the same user is completing the second step. 
-- 2FA bypass using a brute-force attack
+## Two-factor authentication
+> Note: may be useful to check TTL of mfa-codes
 
-- If the user is first prompted to enter a password, and then prompted to enter a verification code on a separate page, the user is effectively in a "logged in" state before they have entered the verification code. In this case, it is worth testing to see if you can directly skip to "logged-in only" pages after completing the first authentication step. Occasionally, you will find that a website doesn't actually check whether or not you completed the second step before loading the page. 
-- After a user has completed the initial login step, the website doesn't adequately verify that the same user is completing the second step:  
+### Lab: 2FA simple bypass
+Websites may not check the second verification step of MFA and you can visit "logged-in only" pages after the first step of MFA flow. (i.e. after correct username and password were submitted)
+i.e. websites ignore the second step of MFA flow and after username and password - the user is already logged in
 
+### Flawed two-factor verification logic
 Sometimes flawed logic in two-factor authentication means that after a user has completed the initial login step, the website doesn't adequately verify that the same user is completing the second step:  
 For example, the user logs in with their normal credentials in the first step as follows:  
 ```
@@ -70,15 +69,15 @@ verification-code=123456
 ```
 This is extremely dangerous if the attacker is then able to brute-force the verification code as it would allow them to log in to arbitrary users' accounts based entirely on their username. They would never even need to know the user's password.   
 
-#### Lab example:
-e.g. make a request to `POST /login` req.body: `user=wiener&password=peter ` 
+### Lab: 2FA broken logic:
+e.g. make a request to `POST /login` req.body: `user=wiener&password=peter` 
 as a response we are redirected to `GET /login2` which generates on the backend a 4 digit mfa code and sends it via sms or email  
 When we got the 4 digit code we submit it with `POST /login2` req.body: `mfa-code=1234`  
 As a response we get a `SetCookie header: session=afasdfsf` and a redirect to a user home page  
 If the mfa logic is broken then we can generate mfa-code for another user by making `GET /login2` request and changing the header `Cookie: verify=wiener` to `Cookie: verify=carlos` and it will generate a new mfa-code for carlos.   
 Later we can brute-force that code and get back a `SetCookie` header with the session for carlos.
 
-2FA bypass using a brute-force attack  
+### Lab: 2FA bypass using a brute-force attack  
 Some websites attempt to prevent mfa bruteforce by automatically logging a user out if they enter a certain number of incorrect verification codes.
 It can be circumvented by writing a script that logs in our user and tries to brute force mfa code.
 > Note: script may need to be run 2 or more times as it is also possible that sometimes new login may generate mfa code that has already been tried before...

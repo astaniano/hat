@@ -1,5 +1,21 @@
 In Burp, load the JWT Editor extension from the BApp store.
 
+### Lab: JWT authentication bypass via unverified signature
+Summary: JWT token is not verified (only decoded)
+
+JWT libraries typically provide one method for verifying tokens and another that just decodes them. For example, the Node.js library jsonwebtoken has verify() and decode().
+
+Occasionally, developers confuse these two methods and only pass incoming tokens to the decode() method. This effectively means that the application doesn't verify the signature at all.
+
+### Lab: JWT authentication bypass via flawed signature verification
+- change "alg":"none" in JWT header and remove the signature (the third part of JWT) but leave the trailing dot after the second part of JWT
+
+### Brute force JWT secrets
+`hashcat -a 0 -m 16500 <jwt> ./jwt.secrets.list`
+To show the result run:
+`hashcat -a 0 -m 16500 <jwt> ./jwt.secrets.list --show`
+If success, the result looks like: `<jwt>:<identified-secret>`
+
 ## JWT header parameter injections
 According to the JWS specification, only the `alg` header parameter is mandatory. In practice, JWT headers often contain other parameters:
 - jwk (JSON Web Key) - Provides an embedded JSON object representing the key.

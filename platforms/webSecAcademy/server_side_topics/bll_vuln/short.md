@@ -23,6 +23,3 @@
 - e.g. 2 discount coupons that reset each others == infinite discount
 - e.g. gift cards + coupons == infinite money
 
-
-### Authentication bypass via encryption oracle
-
