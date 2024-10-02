@@ -24,3 +24,4 @@ if __name__ == "__main__":
         print(result)
     else:
         print('Please provide a JSON string as an argument.')
+

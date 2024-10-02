@@ -103,3 +103,6 @@ stockApi=/product/nextProduct?currentProductId=1&path=http://192.168.0.12:8080/a
 And it will include the contents of /admin in the POST /product/stock response
 In other words server will return  302 redirection to whatever is specified in `path` param 
 
+## Blind SSRF vulnerabilities
+> Note: It is common when testing for SSRF vulnerabilities to observe a DNS look-up for the supplied Collaborator domain, but no subsequent HTTP request. This typically happens because the application attempted to make an HTTP request to the domain, which caused the initial DNS lookup, but the actual HTTP request was blocked by network-level filtering. It is relatively common for infrastructure to allow outbound DNS traffic, since this is needed for so many purposes, but block HTTP connections to unexpected destinations. 
+

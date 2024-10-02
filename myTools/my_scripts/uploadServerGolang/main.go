@@ -73,7 +73,7 @@ func main() {
 	http.HandleFunc("/", mainHtml)
 	http.HandleFunc("/upload", uploadHandler)
 
-	var port = ":8080"
+	var port = ":3000"
 	fmt.Println("Starting server on " + port)
 	if err := http.ListenAndServe(port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
