@@ -2,10 +2,10 @@
  - Syntax injection - This occurs when you can break the NoSQL query syntax, enabling you to inject your own payload. The methodology is similar to that used in SQL injection. However the nature of the attack varies significantly, as NoSQL databases use a range of query languages, types of query syntax, and different data structures.
  - Operator injection - This occurs when you can use NoSQL query operators to manipulate queries.
 
-# NoSQL syntax injection 
-You can potentially detect NoSQL injection vulnerabilities by attempting to break the query syntax. To do this, systematically test each input by submitting fuzz strings and special characters that trigger a database error or some other detectable behavior if they're not adequately sanitized or filtered by the application.
+### Lab: Detecting NoSQL injection
 
-If you know the API language of the target database, use special characters and fuzz strings that are relevant to that language. Otherwise, use a variety of fuzz strings to target multiple API languages. 
+
+
 
 ## Detecting syntax injection in MongoDB
 Consider a shopping application that displays products in different categories. When the user selects the Fizzy drinks category, their browser requests the following URL:
@@ -36,14 +36,9 @@ If this causes a change from the original response, this may indicate that user 
  '\"`{\r;$Foo}\n$Foo \\xYZ\u0000 
 ```
 
-## Determining which characters are processed
 
 
-## Detecting NoSQL (syntax) injection (Lab)
-
-
-
-# NoSQL operator injection
+## NoSQL operator injection
 ## Submitting query operators
 In JSON messages, you can insert query operators as nested objects. For example, `{"username":"wiener"}` becomes `{"username":{"$ne":"invalid"}}`. 
 
