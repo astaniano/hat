@@ -6,22 +6,22 @@ const mongoose = require("mongoose");
 
 mongoose.connect("mongodb://localhost:27017/test");
 
-const someMongooseModel = mongoose.model("def", {
-    email: String,
-    vn: Number,
- });
+const productMongooseModel = mongoose.model("product", {
+    category: String,
+    released: Boolean
+});
 
 app.get("/get", async function (req, res) {
-    const result = await someMongooseModel.find({ $where: `this.email === '${req.query.p}'`})
+    const result = await productMongooseModel.find({ $where: `this.category === '${req.query.category}'`})
     console.log(result)
 
     res.send("done")
 })
 
 app.get("/create", async function (req, res) {
-   const def = new someMongooseModel({
-       email: 'jj',
-       vn: 2
+   const def = new productMongooseModel({
+     category: 'Gift',
+     released: false
    });
 
    await def.save();
