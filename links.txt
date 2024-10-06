@@ -1,3 +1,7 @@
 // AWS AZURE k8s ci/cd:
 https://github.com/iknowjason/Awesome-CloudSec-Labs
 
+// computer networks
+https://www.guru99.com/best-computer-networking-courses.html
+
+

