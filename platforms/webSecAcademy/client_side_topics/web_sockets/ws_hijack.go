@@ -8,7 +8,7 @@ import (
 )
 
 func mainHtml(w http.ResponseWriter, r *http.Request) {
-	htmlFile, err := os.Open("index.html")
+	htmlFile, err := os.Open("ws_hijack.html")
 	if err != nil {
 		http.Error(w, "Could not open HTML file", http.StatusInternalServerError)
 		return

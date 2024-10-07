@@ -66,4 +66,18 @@ We're connected, let's now obfuscate our xss payload:
 And success!
 
 ### Cross-site WebSocket hijacking
+- Click "Live chat" and send a chat message.
+- Reload the page.
+- In Burp Proxy, in the WebSockets history tab, observe that the "READY" command retrieves past chat messages from the server
+- In Burp Proxy, in the HTTP history tab, find the WebSocket handshake request. Observe that the request has no CSRF tokens.
+- Right-click on the handshake request and select "Copy URL".
+- Substitute `https://` with `wss://`
+```
+wss://0aa9007d0435e67f825e745000ac0092.web-security-academy.net/chat
+```
+Go to your server and paste the url above into the `new Websocket(<url>)`
+
+Deliver exploit (ws_hijack.html) to victim
+
+> Note that these messages may not be received in the correct order
 
