@@ -1,3 +1,6 @@
+### Some private (internal) IP address as the target url
+See private_ip.py
+
 ### Localhost as the target url
 > Note: The administrative interface might listen on a different port number
 
@@ -104,9 +107,10 @@ And it will include the contents of /admin in the POST /product/stock response
 In other words server will return  302 redirection to whatever is specified in `path` param 
 
 ## Blind SSRF vulnerabilities
+- e.g. check Referer header, you can try to paste a url of your own server and see if it makes requests to it... 
+
 > Note: It is common when testing for SSRF vulnerabilities to observe a DNS look-up for the supplied Collaborator domain, but no subsequent HTTP request. This typically happens because the application attempted to make an HTTP request to the domain, which caused the initial DNS lookup, but the actual HTTP request was blocked by network-level filtering. It is relatively common for infrastructure to allow outbound DNS traffic, since this is needed for so many purposes, but block HTTP connections to unexpected destinations. 
 
 ### Lab: Blind SSRF with out-of-band detection
 The lab is very simple. The server extracts value from Referer header and makes a request to the url that is specified in the referrer header.
-
 

