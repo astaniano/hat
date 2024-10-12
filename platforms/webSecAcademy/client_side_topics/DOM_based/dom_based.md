@@ -150,3 +150,7 @@ Then `onload` event is triggered and the victim is redirected to Home page. On t
 
 Note we need this `window.x=1` and of course `if(!window.x)` because we don't want `onload` to stuck in a loop. We only want it to be executed once.
 
+
+### Lab: Exploiting DOM clobbering to enable XSS
+
+
