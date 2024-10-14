@@ -6,10 +6,6 @@
 - Example 1: Email change does not require immediate confirmation
 - The presence or absence of a particular parameter may determine which code is executed  
 
-### Think about missing `if` statements in endpoints
-- Remove more items from the cart than it currently has
-- Overloading integer (no `if` check for the total amount of items in the cart)
-
 ### Broken validation OR client-side only validation
 - Pay for a product with a negative value or with other nonsensical input
 - Instead of validation input is truncated or certain chars are filtered out
@@ -18,8 +14,3 @@
 - Try deleting the name of the parameter as well as the value. The server will typically handle both cases differently.
 - Follow multi-stage processes through to completion. Sometimes tampering with a parameter in one step will have an effect on another step further along in the workflow. 
 - Example: remove current pass param from from reset password endpoint and it may update the password to a new one without checking for current pass
-
-### Know as much about the business logic (and business domain) as you can
-- e.g. 2 discount coupons that reset each others == infinite discount
-- e.g. gift cards + coupons == infinite money
-

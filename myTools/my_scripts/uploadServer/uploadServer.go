@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 )
@@ -69,12 +70,38 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				return ipNet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no non-loopback address found")
+}
+
 func main() {
+	localNetworkIP, err := getLocalIP()
+	if err != nil {
+		fmt.Println("Could not get local network address")
+		return
+	}
+
 	http.HandleFunc("/", mainHtml)
 	http.HandleFunc("/upload", uploadHandler)
 
 	var port = ":3000"
-	fmt.Println("Starting server on " + port)
+	fmt.Println("Starting server on:")
+	fmt.Println("http://localhost" + port)
+	fmt.Println("http://" + localNetworkIP + port)
+
 	if err := http.ListenAndServe(port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
