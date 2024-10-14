@@ -178,4 +178,14 @@ In the lab: if we send invalid email it sends us back this "notification" cookie
 `Invalid email address: <whatever your incorrect email was>`
 Since we can now encrypt anything we want with the "Invalid email address: " prefix, we can later figure out how to encrypt stay-logged-in cookie
 
+## Other examples of bll vulnerabilities:
+### Password change functionality in the same endpoint for both regular users and admins
+There are 2 different web interfaces for regular users' password change and for admin user password change.
+However on the backend they use the same endpoint.
+The backend endpoint accepts: current password, new password, new password repeated.
+Logic in that endpoint checks for presence of current password, if it's missing, it assumes that admin user is updating password for another user.
+The idea is that admin users don't need to know current passwords if they want to change password for others. Only regular users need to provide current pass and new pass.
+Due to the flawed logic any regular user may send a request without current password, and the password will be updated.
+
+
 
