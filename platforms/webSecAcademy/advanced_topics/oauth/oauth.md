@@ -228,8 +228,6 @@ Therefore we can check logs of our own external server and find that `access_tok
 
 ### Lab: Stealing OAuth access tokens via a proxy page
 `redirect_uri` is vulnerable to directory traversal 
-TODO: this lab does not work properly: after deliver exploit to victim, victim does not always makes a request to the exploit server
-
 BTW: TODO: figure out why you're getting an error inside of an iframe
 
 example of a solution:
@@ -243,7 +241,6 @@ example of a solution:
     }, false)
 </script>
 ```
-
 
 ## Flawed scope validation
 In any OAuth flow, the user must approve the requested access based on the scope defined in the authorization request. The resulting token allows the client application to access only the scope that was approved by the user. But in some cases, it may be possible for an attacker to "upgrade" an access token (either stolen or obtained using a malicious client application) with extra permissions due to flawed validation by the OAuth service. The process for doing this depends on the grant type.

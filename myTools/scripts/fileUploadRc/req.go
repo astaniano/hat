@@ -41,7 +41,7 @@ func makeHttpReq(method, url, body string, returnResp bool) *http.Response {
 
 	req, _ := http.NewRequest(method, url, data)
 	// req.Header.Add("Cookie", cookie)
-	req.Header.Add("Authorization", "Basic amFuZV9iYXplbkBnbWFpbC5jb206VHl6eDU2PSplZjNmLS0tMw==")
+	req.Header.Add("Authorization", "Basic ")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := httpClient.Do(req)
 
@@ -65,7 +65,7 @@ func uploadFileReq(method, url string) {
 
 	fw, err := writer.CreateFormField("__RequestVerificationToken")
 	checkErr(err)
-	_, err = io.Copy(fw, strings.NewReader("CfDJ8Ev7RV7_tOpHkjS-oAG4nqqVsI1CgU3MuV-mEbMsRKMTn_ykJi3WbA-cTnAyyl1cWAGIc6QtIPu-gPiT3IXmtLvp-_I9DIoqR3ehT6J8eULAqEDL818sXtq_zO24oQXBxL4lqx1JBSEXlN1J_Wq_ZWQ"))
+	_, err = io.Copy(fw, strings.NewReader("CfDc..."))
 	checkErr(err)
 
 	h := make(textproto.MIMEHeader)
@@ -73,7 +73,7 @@ func uploadFileReq(method, url string) {
 	h.Set("Content-Type", `text/plain`)
 	fw, err = writer.CreatePart(h)
 	checkErr(err)
-	phpFile, err := os.Open("/home/user1/Downloads/" + fileName)
+	phpFile, err := os.Open("/home/user/Downloads/" + fileName)
 	checkErr(err)
 	_, err = io.Copy(fw, phpFile)
 	checkErr(err)
@@ -82,7 +82,7 @@ func uploadFileReq(method, url string) {
 
 	req, err := http.NewRequest(method, url, bytes.NewReader(body.Bytes()))
 	checkErr(err)
-	req.Header.Add("Authorization", "Basic amFuZV9iYXplbkBnbWFpbC5jb206VHl6eDU2PSplZjNmLS0tMw==")
+	req.Header.Add("Authorization", "Basic amFu...==")
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	resp, err := httpClient.Do(req)
 	checkErr(err)

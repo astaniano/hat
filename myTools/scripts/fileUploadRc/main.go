@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	mainUrl = "https://ctf.iterasec.com/SimpleFileShare" // should NOT end with "/"
+	mainUrl = "https://localhost:3000" // should NOT end with "/"
 	fileName      = "f5.php"
 )
 

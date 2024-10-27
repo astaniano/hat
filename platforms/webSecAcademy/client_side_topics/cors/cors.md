@@ -101,7 +101,7 @@ e.g. if we send:
 GET /?productId=4<script>alert(33)</script>&storeId=1 HTTP/2
 Host: stock.0a5a00e503089526801a213200ac0073.web-security-academy.net
 ```
-And here's the response that we get back:
+Here's the response that we get back:
 ```bash
 HTTP/2 400 Bad Request
 Content-Type: text/html; charset=utf-8

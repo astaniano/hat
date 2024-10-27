@@ -6,7 +6,7 @@ import socketserver
 # curl -X POST -H "filename: my_file.txt" --data-binary @path/to/local/file.txt http://<server_ip>:8080/
 
 # Specify the directory where uploaded files will be stored
-UPLOAD_DIR = "/home/user1/hat/thm/wonderland"
+UPLOAD_DIR = "/home/user/thm/wonderland"
 
 class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
