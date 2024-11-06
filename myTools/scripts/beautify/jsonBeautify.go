@@ -9,7 +9,7 @@ import (
 func main() {
 	// JSON string to beautify
 	jsonString := `
-	{}
+
 	`
 
 	// Declare a variable to hold the unmarshalled data
@@ -28,7 +28,7 @@ func main() {
 		return
 	}
 
-	file, err := os.Create("./res.txt")
+	file, err := os.Create("./beautified.txt")
 	if err != nil {
 		fmt.Println("Error creating file:", err)
 		return
@@ -42,3 +42,4 @@ func main() {
 		return
 	}
 }
+

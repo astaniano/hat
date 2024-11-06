@@ -25,5 +25,5 @@ const jwt = `
 `
 const {header, payload} = decodeJWT(jwt)
 const indentedPayload = JSON.stringify(JSON.parse(payload), null, 4)
-fs.writeFileSync(`./tokens/jwt_idp.txt`, `${header}\n\n${indentedPayload}\n`)
+fs.writeFileSync(`./beautified.txt`, `${header}\n\n${indentedPayload}\n`)
 

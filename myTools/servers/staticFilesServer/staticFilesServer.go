@@ -31,12 +31,12 @@ func main() {
 
 	// Serve static files (like index.js) from the current directory
 	// TODO: add current file location + ./
-	fs := http.FileServer(http.Dir("./"))
+	fs := http.FileServer(http.Dir("./static"))
 
 	// http.Handle("/static/", http.StripPrefix("/static/", fs))
 	http.Handle("/", fs)
 
-	var port = ":3000"
+	var port = ":3006"
 	fmt.Println("Starting server on:")
 	fmt.Println("http://localhost" + port)
 	if err := http.ListenAndServe(port, nil); err != nil {
