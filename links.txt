@@ -4,4 +4,9 @@ https://github.com/iknowjason/Awesome-CloudSec-Labs
 // computer networks
 https://www.guru99.com/best-computer-networking-courses.html
 
+// if you need your domain to be changed e.g.:
+www.taxact.com.[my].[domain]
+// the following websites may come in handy
+https://pentest.it.com
+https://traefik.me/
 

