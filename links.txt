@@ -3,6 +3,7 @@ https://github.com/iknowjason/Awesome-CloudSec-Labs
 
 // computer networks
 https://www.guru99.com/best-computer-networking-courses.html
+https://uk.indeed.com/career-advice/career-development/networking-courses
 
 // if you need your domain to be changed e.g.:
 www.taxact.com.[my].[domain]
