@@ -4,11 +4,12 @@
 var url = requestResponse.finalRequest().url();
 
 String[] exclude = {
-    "https://",
+    "cdn.optimizely.com",
+    "content-autofill.googleapis.com",
 };
 
 for (String exludedUrl : exclude) {
-    if (url.startsWith(exludedUrl)) {
+    if (url.contains(exludedUrl)) {
         return false;
     }
 }

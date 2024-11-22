@@ -253,9 +253,9 @@ For example, let's say the attacker's malicious client application initially req
 POST /token
 Host: oauth-authorization-server.com
 …
-client_id=12345&client_secret=SECRET&redirect_uri=https://client-app.com/callback&grant_type=authorization_code&code=a1b2c3d4e5f6g7h8&scope=openid%20 email%20profile
+client_id=12345&client_secret=SECRET&redirect_uri=https://client-app.com/callback&grant_type=authorization_code&code=a1b2c3d4e5f6g7h8&scope=openid%20email%20profile
 ```
-If the server does not validate this against the scope from the initial authorization request, it will sometimes generate an access token using the new scope and send this to the attacker's client application:
+If the oauth identity provider server (e.g. google) does not validate this against the scope from the initial authorization request, it will generate an access token using the new scope and will send this to the attacker's client application:
 ```
 {
     "access_token": "z0y9x8w7v6u5",
@@ -270,16 +270,16 @@ The attacker can then use their application to make the necessary API calls to a
 ### Scope upgrade: implicit flow
 For the implicit grant type, the access token is sent via the browser, which means an attacker can steal tokens associated with innocent client applications and use them directly. Once they have stolen an access token, they can send a normal browser-based request to the OAuth service's /userinfo endpoint, manually adding a new scope parameter in the process.
 
-Ideally, the OAuth service should validate this scope value against the one that was used when generating the token, but this isn't always the case. As long as the adjusted permissions don't exceed the level of access previously granted to this client application, the attacker can potentially access additional data without requiring further approval from the user.
+Ideally, the OAuth service (e.g. google) should validate this scope value against the one that was used when generating the token, but this isn't always the case. As long as the adjusted permissions don't exceed the level of access previously granted to this client application, the attacker can potentially access additional data without requiring further approval from the user.
 
-### Unverified user registration
+## Unverified user registration
 When authenticating users via OAuth, the client application makes the implicit assumption that the information stored by the OAuth provider is correct. This can be a dangerous assumption to make.
 
 Some websites that provide an OAuth service allow users to register an account without verifying all of their details, including their email address in some cases. An attacker can exploit this by registering an account with the OAuth provider using the same details as a target user, such as a known email address. Client applications may then allow the attacker to sign in as the victim via this fraudulent account with the OAuth provider.
 
 ## OpenID Connect
 ### Identifying OpenID Connect
-Even if the login process does not initially appear to be using OpenID Connect, it is still worth checking whether the OAuth service supports it. You can simply try adding the openid scope or changing the response type to id_token and observing whether this results in an error.
+**Even if the login process does not initially appear to be using OpenID Connect, it is still worth checking whether the OAuth service supports it. You can simply try adding the openid scope or changing the response type to id_token and observing whether this results in an error**
 
 As with basic OAuth, it's also a good idea to take a look at the OAuth provider's documentation to see if there's any useful information about their OpenID Connect support. You may also be able to access the configuration file from the standard endpoint /.well-known/openid-configuration.
 

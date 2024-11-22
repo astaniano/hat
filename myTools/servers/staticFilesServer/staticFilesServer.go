@@ -31,7 +31,7 @@ func main() {
 
 	// Serve static files (like index.js) from the current directory
 	// TODO: add current file location + ./
-	fs := http.FileServer(http.Dir("./static"))
+	fs := http.FileServer(http.Dir("./assets"))
 
 	// http.Handle("/static/", http.StripPrefix("/static/", fs))
 	http.Handle("/", fs)

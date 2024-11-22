@@ -1,13 +1,18 @@
 // AWS AZURE k8s ci/cd:
 https://github.com/iknowjason/Awesome-CloudSec-Labs
 
-// computer networks
-https://www.guru99.com/best-computer-networking-courses.html
-https://uk.indeed.com/career-advice/career-development/networking-courses
-
 // if you need your domain to be changed e.g.:
 www.taxact.com.[my].[domain]
 // the following websites may come in handy
 https://pentest.it.com
-https://traefik.me/
+https://traefik.me
+
+// Finance Attack Analysis
+https://veefi.medium.com/vee-finance-attack-analysis-a4839724e085
+https://soroush.me/downloadable/common-security-issues-in-financially-orientated-web-applications.pdf
+
+// IBAN for testing purposes
+http://randomiban.com/?country=Netherlands
+https://fakeiban.org/
+
 

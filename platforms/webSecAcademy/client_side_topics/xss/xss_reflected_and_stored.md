@@ -194,7 +194,7 @@ This injection creates a custom tag with the name `xss` (but the name can be any
 Note: we need a `tabindex=1` here because that's what allows this new custom html element (`xss`) to be focusable. 
 
 
-### Lab: Reflected XSS with event handlers and `href` attributes blocked
+### EXPERT Lab: Reflected XSS with event handlers and href attributes blocked
 There's a search field that can be abused for xss. When we type `<h1>` we get a response that it's blocked. But `<a>` tag is not blocked. Only `href` on `<a>` is blocked.
 
 We first figure out what is not blocked by firewall either with burp intruder or with `bf` golang script in this folder.
@@ -391,7 +391,7 @@ var ff = 'hello333\\' - alert()//'
 </script>
 ```
 
-### Lab: Reflected XSS in a JavaScript URL with some characters blocked
+### EXPERT Lab: Reflected XSS in a JavaScript URL with some characters blocked
 ```
 https://fff.web-security-academy.net/post?postId=2
 ```
