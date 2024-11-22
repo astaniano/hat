@@ -366,3 +366,34 @@ So we create an exploit for the victim:
 ```bash
 <script>document.location = "https://labid.web-security-academy.net/resources/..%2fmy-account"</script>
 ```
+
+## Exploiting normalization by the cache server
+If the cache server resolves encoded dot-segments but the origin server doesn't, you can attempt to exploit the discrepancy by constructing a payload according to the following structure:
+```bash
+/<dynamic-path>%2f%2e%2e%2f<static-directory-prefix>
+```
+
+> Note:
+>
+> When exploiting normalization by the cache server, encode all characters in the path traversal sequence. Using encoded characters helps avoid unexpected behavior when using delimiters, and there's no need to have an unencoded slash following the static directory prefix since the cache will handle the decoding. 
+
+In this situation, path traversal alone isn't sufficient for an exploit. For example, consider how the cache and origin server interpret the payload /profile%2f%2e%2e%2fstatic:
+- The cache interprets the path as: /static
+- The origin server interprets the path as: /profile%2f%2e%2e%2fstatic
+
+The origin server is likely to return an error message instead of profile information.
+
+To exploit this discrepancy, you'll need to also identify a delimiter that is used by the origin server but not the cache. Test possible delimiters by adding them to the payload after the dynamic path:
+- If the origin server uses a delimiter, it will truncate the URL path and return the dynamic information.
+- If the cache doesn't use the delimiter, it will resolve the path and cache the response.
+
+For example, consider the payload /profile;%2f%2e%2e%2fstatic. The origin server uses ; as a delimiter:
+- The cache interprets the path as: /static
+- The origin server interprets the path as: /profile
+
+The origin server returns the dynamic profile information, which is stored in the cache. You can therefore use this payload for an exploit. 
+
+### PRACTITIONER Lab: Exploiting cache server normalization for web cache deception
+
+
+
