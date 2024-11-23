@@ -1,2 +1,0 @@
-use the Web Cache Deception Scanner BApp to detect misconfigured web caches. 
-
