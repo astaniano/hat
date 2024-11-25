@@ -1,3 +1,4 @@
+check if .map.js files are returned in production, i.e. if source code of frontend is not bundeled
 check if app uses cookies, if so check for CSRF, CORS
 first check if frontend generates .js.map files in production
 npm audit to check for outdated deps
