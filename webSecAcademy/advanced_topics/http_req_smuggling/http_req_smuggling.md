@@ -912,5 +912,7 @@ x=
 First we figure out if it's CL.TE or TE.CL via timing technique and via differential responses
 Eventually we see that there is CL.TE
 
+To solve the lab we craft an attack request second part of which posts a comment on a page, but it does not post comment right away, it posts that comment as soon as the admin user makes a request to the server, and our poisoned backend server will actually post the admin's cookie and other request info as a blog comment
+
 
 
