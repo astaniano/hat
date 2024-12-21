@@ -9,25 +9,34 @@ import (
 )
 
 func mainHtml(w http.ResponseWriter, r *http.Request) {
-	htmlContent := `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Simple Go Server</title>
-    </head>
-    <body>
-        <h1>Hello, World!</h1>
-        <p>This is a simple HTML page served by a Go HTTP server.</p>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <label for="file">Choose a file:</label>
-            <input type="file" id="file" name="file" />
-            <button type="submit">Upload</button>
-        </form>
-    </body>
-    </html>`
+	// htmlContent := `
+    // <!DOCTYPE html>
+    // <html>
+    // <head>
+    //     <title>Simple Go Server</title>
+    // </head>
+    // <body>
+    //     <form action="/upload" method="post" enctype="multipart/form-data">
+    //         <label for="file">Choose a file:</label>
+    //         <input type="file" id="file" name="file" />
+    //         <button type="submit">Upload</button>
+    //     </form>
+    // </body>
+    // </html>`
+
+	htmlContent, err := os.ReadFile("index.html")
+	if err != nil {
+		http.Error(w, "Could not read HTML file", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, htmlContent)
+
+	// for the response with bytes, read from the file
+	w.Write(htmlContent) 
+
+	// for the response from a var that contains a string
+	// fmt.Fprint(w, htmlContent) 
 }
 
 const uploadPath = "./uploads/"
