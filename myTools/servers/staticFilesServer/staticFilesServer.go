@@ -54,7 +54,8 @@ func test(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close() // Ensure the body is closed after reading
 
 	fmt.Println(r.RequestURI)
-	fmt.Println("Request Body:", string(body))
+	fmt.Println("Request Body:")
+	fmt.Println(string(body))
 
 	io.WriteString(w, "Success!\n")
 }

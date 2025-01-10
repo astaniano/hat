@@ -16,6 +16,8 @@ Fortunately, you can automate the process of identifying unkeyed inputs by addin
 
 **Caution**: When testing for unkeyed inputs on a live website, there is a risk of inadvertently causing the cache to serve your generated responses to real users. Therefore, it is important to make sure that your requests all have a unique cache key so that they will only be served to you. To do this, you can manually add a cache buster (such as a unique parameter) to the request line each time you make a request. Alternatively, if you are using Param Miner, there are options for automatically adding a cache buster to every request
 
+Cache buster can be e.g.: req query param, Origin header, Cookie, Accept, Accept-encncoding headers
+
 ### Elicit a harmful response from the back-end server
 Once you have identified an unkeyed input, the next step is to evaluate exactly how the website processes it. Understanding this is essential to successfully eliciting a harmful response. If an input is reflected in the response from the server without being properly sanitized, or is used to dynamically generate other data, then this is a potential entry point for web cache poisoning. 
 
@@ -302,7 +304,7 @@ And in the response we see that the response is cached. So we try to make anothe
 ### PRACTITIONER Lab: Targeted web cache poisoning using an unknown header
 The origin server returns `Vary: User-agent` header to the caching server (and we later see it in the response because the caching server does not remove the `Vary` header from the response) which means that the origin server asks the caching server to use the value of `User-Agent` header in its cache key
 
-To test that the User-Agent is used in the cache key we can modify the value of User-Agent header and see if the response is returned from the cache or not e.g. by looking into the `X-cache: miss`.
+To test that the User-Agent is used in the cache key we can modify the value of User-Agent header and see if the response is returned from the cache or not e.g. by looking into the `X-cache: miss`
 
 So we add cache buster (randomasdfsdf) to User-Agent header and send the request:
 ```bash

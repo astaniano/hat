@@ -1,0 +1,4 @@
+let response = pm.response.json()
+pm.environment.set('bearerToken', response)
+
+

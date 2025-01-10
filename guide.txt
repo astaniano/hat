@@ -1,7 +1,13 @@
+json injection:
+https://danaepp.com/attacking-apis-using-json-injection
+
 first check if frontend generates .js.map files in production
 npm audit to check for outdated deps
 check if app uses cookies, if so check for CSRF, CORS
 use the Web Cache Deception Scanner BApp to detect misconfigured web caches
+http 1.1, request smuggling
+
+outdated dependencies
 
 # react js
 dangerouslySetInnerHTML
