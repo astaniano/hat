@@ -1,0 +1,13 @@
+DOM invader in burp's chromium browser
+
+// must have extensions:
+Param miner
+JWT editor
+Web Cache deception scanner
+Collaborator everywhere
+HTTP Request Smuggler
+Auth Analyzer
+Server-Side Prototype Pollution Scanner
+
+// might be useful extensions:
+Flow // most likely Logger tab can be used instead ?

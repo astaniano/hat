@@ -26,7 +26,7 @@ func mainHtml(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// http.HandleFunc("/", mainHtml)
-	http.HandleFunc("/test", test)
+	http.HandleFunc("/test", logReqBody)
 	http.HandleFunc("/redirect", redirect)
 
 	// Serve static files (like index.js) from the current directory
@@ -44,7 +44,7 @@ func main() {
 	}
 }
 
-func test(w http.ResponseWriter, r *http.Request) {
+func logReqBody(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("in test")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

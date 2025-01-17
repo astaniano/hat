@@ -1,0 +1,13 @@
+https://portswigger.net/web-security/essential-skills/using-burp-scanner-during-manual-testing
+Scan manual insertion point extension
+There is no need for that extension because in repeater we now have:  Scan selected insertion point?
+So the docs are confusing a bit...
+
+deliver to victim does not work consistently, that's very upsetting. It does not work more often than it works...
+
+in burp's chromium browser would be nice to have some button to stop intercepting traffic and then continue intercepting
+
+navigation menu pop up after page refresh...
+
+server side code for the lab, at least a snippet, in prototype pollution may work
+
