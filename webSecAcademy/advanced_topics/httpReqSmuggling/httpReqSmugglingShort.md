@@ -2,7 +2,7 @@
 ```
 https://github.com/PortSwigger/http-request-smuggler
 ```
-For http 1.1 we use it by right click on a req > extensions > http req smuggler > smuggle probe
+For http 1.1 we use it by right clicking on a req > extensions > http req smuggler > smuggle probe
 
 ### HTTP desync attacks: Request smuggling reborn
 ```
