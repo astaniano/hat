@@ -1,3 +1,21 @@
+### Using HTTP request smuggling to turn an on-site redirect into an open redirect
+For example:
+There's a req:
+```bash
+GET /resources/js/analytics.js HTTP/2
+```
+Which returns a js file in the response. If we change the req url to the following:
+```bash
+GET /resources/js HTTP/2
+```
+Then in response we'll get a redirect:
+```bash
+HTTP/2 302 Found
+Location: https://0ae700f603b9e4588078eee200b400a6.web-security-academy.net/resources/js/
+X-Frame-Options: SAMEORIGIN
+Content-Length: 0
+```
+
 ### HTTP Request Smuggler extension docs:
 ```
 https://github.com/PortSwigger/http-request-smuggler
