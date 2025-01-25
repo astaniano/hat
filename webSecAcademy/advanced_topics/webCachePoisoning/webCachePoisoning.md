@@ -1,3 +1,11 @@
+### Web cache poisoning research
+
+This technique was first popularized by our 2018 research paper, "Practical Web Cache Poisoning", and developed further in 2020 with a second research paper, "Web Cache Entanglement: Novel Pathways to Poisoning". If you're interested in a detailed description of how we discovered and exploited these vulnerabilities in the wild, the full write-ups are available on our research page. 
+```bash
+https://portswigger.net/research/practical-web-cache-poisoning
+https://portswigger.net/research/web-cache-entanglement
+```
+
 ### Cache keys
 When the cache receives an HTTP request, it first has to determine whether there is a cached response that it can serve directly, or whether it has to forward the request for handling by the back-end server. Caches identify equivalent requests by comparing a predefined subset of the request's components, known collectively as the "cache key". Typically, this would contain the request line and Host header. Components of the request that are not included in the cache key are said to be "unkeyed"
 
@@ -96,7 +104,7 @@ GET /?abc=1234 HTTP/2
 Host: 0a63008f037e438485615d08005100ad.web-security-academy.net
 ```
 
-And we see that the response is cached, which means we can use this cache buster in web cache poisoining tests:
+And we see that the response is cached, which means we can use this cache buster in web cache poisoning tests:
 ```bash
 HTTP/2 200 OK
 Content-Type: text/html; charset=utf-8
@@ -108,7 +116,7 @@ Content-Length: 10961
 ```
 
 So to search for headers that can modify the response from the server we'll use Param Miner in burp suite
-Go to repeater, right click on the request > Extenstions > Param Miner > Guess headers, and leave the default settings for search
+go to repeater, right click on the request > Extenstions > Param Miner > Guess headers, and leave the default settings for search
 
 Then to see the results of the Param Miner scan we go to Extensions tab in burp > select Param Miner > change the tab within Param Miner extension to Output
 In the Output we see:
