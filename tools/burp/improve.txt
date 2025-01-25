@@ -86,4 +86,5 @@ Content-Length: 3251
 ```
 Would be nice to know where to write comments about the lab...
 
+add a button in extensions to stop making requests
 

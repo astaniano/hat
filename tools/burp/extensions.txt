@@ -8,6 +8,7 @@ Collaborator everywhere
 HTTP Request Smuggler
 Auth Analyzer
 Server-Side Prototype Pollution Scanner
+Content Type Converter
 
 // might be useful extensions:
 Flow // most likely Logger tab can be used instead ?

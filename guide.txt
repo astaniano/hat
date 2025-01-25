@@ -8,6 +8,9 @@ use the Web Cache Deception Scanner BApp to detect misconfigured web caches
 http 1.1, request smuggling
 
 outdated dependencies
+check for tls older than 1.2
+api rate limiting
+effortless DoS
 
 # react js
 dangerouslySetInnerHTML
