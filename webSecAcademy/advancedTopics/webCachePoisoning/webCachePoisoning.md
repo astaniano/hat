@@ -1,5 +1,4 @@
 ### Web cache poisoning research
-
 This technique was first popularized by our 2018 research paper, "Practical Web Cache Poisoning", and developed further in 2020 with a second research paper, "Web Cache Entanglement: Novel Pathways to Poisoning". If you're interested in a detailed description of how we discovered and exploited these vulnerabilities in the wild, the full write-ups are available on our research page. 
 ```bash
 https://portswigger.net/research/practical-web-cache-poisoning

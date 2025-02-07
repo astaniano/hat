@@ -131,7 +131,7 @@ We also try `Accept` header by appending `, text/randomadfdsaf` to it, but the r
 We try `Accept-encoding`, at the end we append: `, fasdfsdfsdf` and the response is returned from the cache
 Last thing we can try is `Origin` header, with the value e.g.: `https://cachebusterrandom.com` and we get `x-cache: miss` which means the response is not returned from the cache, and the response is now cached
 
-If we make a request:
+If we make the request:
 ```bash
 GET /?cb=VVVV
 ...
@@ -291,7 +291,6 @@ GET /?example=123?excluded_param=bad-stuff-here
 In this case, the cache would identify two parameters and exclude the second one from the cache key. However, the server doesn't accept the second ? as a delimiter and instead only sees one parameter, example, whose value is the entire rest of the query string, including our payload. If the value of example is passed into a useful gadget, we have successfully injected our payload without affecting the cache key. 
 
 ### Exploiting parameter parsing quirks
-TODO: read below, (contains info about ruby)
 Similar parameter cloaking issues can arise in the opposite scenario, where the back-end identifies distinct parameters that the cache does not. The Ruby on Rails framework, for example, interprets both ampersands (&) and semicolons (;) as delimiters. When used in conjunction with a cache that does not allow this, you can potentially exploit another quirk to override the value of a keyed parameter in the application logic.
 
 Consider the following request:
@@ -445,7 +444,7 @@ param=bad-stuff-here
 In this case, the cache key would be based on the request line, but the server-side value of the parameter would be taken from the body. 
 
 ### PRACTITIONER Lab: Web cache poisoning via a fat GET request
-This is not well described lab, for understanding read previous labs
+This is not a properly described lab, for understanding read previous labs
 There's a request and the value of `callback` is reflected in the response html page
 ```bash
 GET /js/geolocate.js?callback=setCountryCookie HTTP/2
