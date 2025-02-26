@@ -11,8 +11,5 @@ https://traefik.me
 https://veefi.medium.com/vee-finance-attack-analysis-a4839724e085
 https://soroush.me/downloadable/common-security-issues-in-financially-orientated-web-applications.pdf
 
-// IBAN for testing purposes
-http://randomiban.com/?country=Netherlands
-https://fakeiban.org/
-
-
+// OSCP
+https://www.youtube.com/watch?v=pvNYaUs0aqc&t=51s
