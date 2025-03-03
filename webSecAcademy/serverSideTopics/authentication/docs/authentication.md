@@ -48,10 +48,7 @@ HTTP basic authentication is also particularly vulnerable to session-related exp
 In some cases, exploiting vulnerable HTTP basic authentication might only grant an attacker access to a seemingly uninteresting page. However, in addition to providing a further attack surface, the credentials exposed in this way might be reused in other, more confidential contexts. 
 
 ### Vulnerabilities in multi-factor authentication
-TODO: stopped here
-> Note: may be useful to check TTL of mfa-codes
-
-### Lab: 2FA simple bypass
+### APPRENTICE Lab: 2FA simple bypass
 Websites may not check the second verification step of MFA and you can visit "logged-in only" pages after the first step of MFA flow. (i.e. after correct username and password were submitted)
 i.e. websites ignore the second step of MFA flow and after username and password - the user is already logged in
 
@@ -90,7 +87,8 @@ verification-code=123456
 ```
 This is extremely dangerous if the attacker is then able to brute-force the verification code as it would allow them to log in to arbitrary users' accounts based entirely on their username. They would never even need to know the user's password.   
 
-### Lab: 2FA broken logic:
+### PRACTITIONER Lab: 2FA broken logic:
+TODO: stopped here
 e.g. make a request to `POST /login` req.body: `user=wiener&password=peter` 
 as a response we are redirected to `GET /login2` which generates on the backend a 4 digit mfa code and sends it via sms or email  
 When we got the 4 digit code we submit it with `POST /login2` req.body: `mfa-code=1234`  
@@ -98,7 +96,7 @@ As a response we get a `SetCookie header: session=afasdfsf` and a redirect to a 
 If the mfa logic is broken then we can generate mfa-code for another user by making `GET /login2` request and changing the header `Cookie: verify=wiener` to `Cookie: verify=carlos` and it will generate a new mfa-code for carlos.   
 Later we can brute-force that code and get back a `SetCookie` header with the session for carlos.
 
-### Lab: 2FA bypass using a brute-force attack  
+### EXPERT Lab: 2FA bypass using a brute-force attack  
 Some websites attempt to prevent mfa bruteforce by automatically logging a user out if they enter a certain number of incorrect verification codes.
 It can be circumvented by writing a script that logs in our user and tries to brute force mfa code.
 > Note: script may need to be run 2 or more times as it is also possible that sometimes new login may generate mfa code that has already been tried before...
