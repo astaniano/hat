@@ -11,6 +11,7 @@ outdated dependencies
 check for tls older than 1.2
 api rate limiting
 effortless DoS
+replay attacks
 
 # react js
 dangerouslySetInnerHTML

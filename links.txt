@@ -13,3 +13,9 @@ https://soroush.me/downloadable/common-security-issues-in-financially-orientated
 
 // OSCP
 https://www.youtube.com/watch?v=pvNYaUs0aqc&t=51s
+
+// LLM:
+https://www.youtube.com/watch?v=7xTGNNLPyMI
+
+// containers
+https://www.youtube.com/watch?v=x1npPrzyKfs

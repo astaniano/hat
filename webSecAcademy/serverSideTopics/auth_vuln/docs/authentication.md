@@ -1,16 +1,7 @@
-Most vulnerabilities in authentication mechanisms occur in one of two ways:
-- The authentication mechanisms are weak because they fail to adequately protect against brute-force attacks.
-- Logic flaws or poor coding in the implementation allow the authentication mechanisms to be bypassed entirely by an attacker. This is sometimes called "broken authentication".
-
+### Vulnerabilities in password-based login
 ### Brute-forcing usernames
-Usernames are especially easy to guess if they conform to a recognizable pattern, such as an email address. For example, it is very common to see business logins in the format firstname.lastname@somecompany.com. However, even if there is no obvious pattern, sometimes even high-privileged accounts are created using predictable usernames, such as admin or administrator
-
-During auditing, check whether the website discloses potential usernames publicly. For example, are you able to access user profiles without logging in? Even if the actual content of the profiles is hidden, the name used in the profile is sometimes the same as the login username. You should also check HTTP responses to see if any email addresses are disclosed. Occasionally, responses contain email addresses of high-privileged users, such as administrators or IT support
-
-#### short:
-- Can you access private user profiles without logging in as those users?
 - Profile name may sometimes be the same as the login username
-- Check HTTP responses to see if any email addresses are disclosed in http responses
+- You should also check HTTP responses to see if any email addresses are disclosed. Occasionally, responses contain email addresses of high-privileged users, such as administrators or IT support
 
 ### Username enumeration
 - try to register a new user with the username that is already taken
@@ -20,6 +11,11 @@ During auditing, check whether the website discloses potential usernames publicl
 - check response time: send as long password as possible and if the username is correct the response time may be longer than usual
 - via account lock:
   - Sometimes an application may respond invalid username or password but in case we hit the username that exists more than let's say 3 times the response will be different. E.g.: You have made too many incorrect login attempts
+
+### APPRENTICE Lab: Username enumeration via different responses
+### PRACTITIONER Lab: Username enumeration via subtly different responses
+### PRACTITIONER Lab: Username enumeration via response timing
+The 3 labs above are too basic, and there's no need to explain them
 
 ### Flawed brute-force protection
 > Note: IP block can sometimes be evaded with `X-Forwarded-For` header
@@ -32,7 +28,14 @@ During auditing, check whether the website discloses potential usernames publicl
   - `{ "password": "some passs" }` to an array:
 `{ "password": ["some passs", "another pass"] }`
 
-## Two-factor authentication
+### PRACTITIONER Lab: Broken brute-force protection, IP block
+Not interesting to describe
+
+### Account locking
+TODO: stopped here
+
+
+### Two-factor authentication
 > Note: may be useful to check TTL of mfa-codes
 
 ### Lab: 2FA simple bypass

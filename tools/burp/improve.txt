@@ -88,3 +88,6 @@ Would be nice to know where to write comments about the lab...
 
 add a button in extensions to stop making requests
 
+global vars like in postman would be nice, + post req scripts that can set those vars... I had mfa and new ids on every login
+Plmr-Idempotency-Key would be nice if it could be generated every new request
+
